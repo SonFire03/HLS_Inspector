@@ -11,39 +11,9 @@
       <span class="hero-pill">Pas de téléchargement</span>
       <span class="hero-pill">HTML + ressources liées</span>
     </div>
-    <div class="signal-strip">
-      <div class="signal-card signal-card-a">
-        <span>Analyse locale</span>
-        <strong>Captures lisibles</strong>
-        <p>Aucune exécution distante, uniquement le HTML et les ressources déclarées.</p>
-      </div>
-      <div class="signal-card signal-card-b">
-        <span>Inventaire</span>
-        <strong>Flux, médias, docs</strong>
-        <p>Vue unifiée pour les ressources techniques détectées sur page.</p>
-      </div>
-      <div class="signal-card signal-card-c">
-        <span>Historique</span>
-        <strong>{{ history_view.pagination.total_items }} entrées</strong>
-        <p>Navigation rapide entre résultats, détail et exports.</p>
-      </div>
-    </div>
-    <div class="hero-flow">
-      <article class="flow-card">
-        <span class="flow-index">01</span>
-        <strong>Coller l’URL</strong>
-        <p>Entrée simple, validation HTTP/HTTPS et dépôt `.txt` possible.</p>
-      </article>
-      <article class="flow-card">
-        <span class="flow-index">02</span>
-        <strong>Lancer l’analyse</strong>
-        <p>Extraction du HTML, des flux et des ressources détectables.</p>
-      </article>
-      <article class="flow-card">
-        <span class="flow-index">03</span>
-        <strong>Explorer les résultats</strong>
-        <p>Historique, détail visuel, export JSON, CSV et rapport.</p>
-      </article>
+    <div class="hero-actions">
+      <a class="ghost-button" href="#composer">Nouvelle analyse</a>
+      <a class="ghost-button" href="#history">Voir l’historique</a>
     </div>
   </div>
   <div class="hero-side">
@@ -67,6 +37,10 @@
       </div>
       <div class="hero-visual-grid">
         <div class="visual-tile">
+          <span>Analyses</span>
+          <strong>{{ history_view.pagination.total_items }}</strong>
+        </div>
+        <div class="visual-tile">
           <span>Flux</span>
           <strong>{{ history_view.summary.asset_counts.stream or 0 }}</strong>
         </div>
@@ -75,44 +49,44 @@
           <strong>{{ history_view.summary.asset_counts.video or 0 }}</strong>
         </div>
         <div class="visual-tile">
-          <span>Documents</span>
-          <strong>{{ history_view.summary.asset_counts.document or 0 }}</strong>
-        </div>
-        <div class="visual-tile">
-          <span>Images</span>
-          <strong>{{ history_view.summary.asset_counts.image or 0 }}</strong>
+          <span>Ressources</span>
+          <strong>{{ history_view.summary.total_assets }}</strong>
         </div>
       </div>
     </div>
-    <div class="stat-grid" id="hero-stats">
-      <article class="stat-card">
-        <span class="stat-label">Analyses</span>
-        <strong class="stat-value" id="stat-analyses">{{ history_view.pagination.total_items }}</strong>
-      </article>
-      <article class="stat-card">
-        <span class="stat-label">Flux visibles</span>
-        <strong class="stat-value" id="stat-streams">0</strong>
-      </article>
-      <article class="stat-card">
-        <span class="stat-label">Vidéos</span>
-        <strong class="stat-value" id="stat-videos">0</strong>
-      </article>
-      <article class="stat-card">
-        <span class="stat-label">Pages directes</span>
-        <strong class="stat-value" id="stat-direct">0</strong>
-      </article>
-      <article class="stat-card">
-        <span class="stat-label">Sources suivies</span>
-        <strong class="stat-value" id="stat-sources">0</strong>
-      </article>
-    </div>
-    <div class="actions-bar">
-    <a class="ghost-button" href="/export/json">Export JSON</a>
-    <a class="ghost-button" href="/export/csv">Export CSV</a>
-    <a class="ghost-button" href="/export/report/html" target="_blank" rel="noreferrer">Rapport HTML</a>
-    <a class="ghost-button" href="/export/report/markdown">Markdown</a>
-    <button class="danger-button" id="clear-history" type="button">Vider l’historique</button>
   </div>
+</section>
+
+<section class="panel hero-summary">
+  <div class="stat-grid" id="hero-stats">
+    <article class="stat-card">
+      <span class="stat-label">Analyses</span>
+      <strong class="stat-value" id="stat-analyses">{{ history_view.pagination.total_items }}</strong>
+    </article>
+    <article class="stat-card">
+      <span class="stat-label">Flux visibles</span>
+      <strong class="stat-value" id="stat-streams">0</strong>
+    </article>
+    <article class="stat-card">
+      <span class="stat-label">Vidéos</span>
+      <strong class="stat-value" id="stat-videos">0</strong>
+    </article>
+    <article class="stat-card">
+      <span class="stat-label">Pages directes</span>
+      <strong class="stat-value" id="stat-direct">0</strong>
+    </article>
+    <article class="stat-card">
+      <span class="stat-label">Sources suivies</span>
+      <strong class="stat-value" id="stat-sources">0</strong>
+    </article>
+    <article class="stat-card">
+      <span class="stat-label">Actions</span>
+      <div class="actions-bar actions-bar-compact">
+        <a class="ghost-button" href="/export/json">JSON</a>
+        <a class="ghost-button" href="/export/csv">CSV</a>
+        <a class="ghost-button" href="/export/report/html" target="_blank" rel="noreferrer">Rapport</a>
+      </div>
+    </article>
   </div>
 </section>
 
@@ -149,7 +123,7 @@
   </div>
 </section>
 
-<section class="panel composer">
+<section class="panel composer" id="composer">
   <form id="analyze-form" class="analysis-form">
   <div class="composer-header">
     <div>
@@ -186,7 +160,7 @@
   </form>
 </section>
 
-<section class="panel">
+<section class="panel" id="history">
   <div class="section-top">
     <div>
       <h2>Historique</h2>
