@@ -286,11 +286,6 @@ historyBody.addEventListener("click", async (event) => {
     return;
   }
 
-  if (target.classList.contains("copy-button")) {
-    await navigator.clipboard.writeText(target.dataset.copy);
-    setStatus("Lien .m3u8 copié dans le presse-papiers.");
-  }
-
   if (target.classList.contains("delete-row")) {
     const row = target.closest("tr");
     const id = row?.dataset?.id;
@@ -304,6 +299,15 @@ historyBody.addEventListener("click", async (event) => {
     } else {
       setStatus("Impossible de supprimer l’analyse.", true);
     }
+  }
+});
+
+document.addEventListener("click", async (event) => {
+  const target = event.target;
+  if (!target.classList.contains("copy-button")) return;
+  await navigator.clipboard.writeText(target.dataset.copy);
+  if (statusMessage) {
+    setStatus("Lien .m3u8 copié dans le presse-papiers.");
   }
 });
 

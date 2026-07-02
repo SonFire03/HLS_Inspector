@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Détail - HLS Inspector{% endblock %}
+{% block content %}
+<section class="detail-page">
+  <div class="detail-hero">
+    <div>
+      <p class="eyebrow">Page d’analyse</p>
+      <h1>{{ item.page_title if item else "Analyse introuvable" }}</h1>
+      <p class="lead">{{ item.page_url if item else "Aucune donnée disponible." }}</p>
+    </div>
+    <div class="actions-bar">
+      <a class="ghost-button" href="/">Retour</a>
+      {% if item %}
+      <a class="ghost-button" href="/export/report/html">Rapport HTML</a>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if item %}
+  <div class="detail-layout">
+    <article class="panel detail-summary">
+      <div class="detail-summary-grid">
+        <div class="stat-card">
+          <span class="stat-label">Statut</span>
+          <strong class="stat-value">{{ item.status }}</strong>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Source</span>
+          <strong class="stat-value">{{ item.source_label }}</strong>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Flux</span>
+          <strong class="stat-value">{{ item.stream_count }}</strong>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Date</span>
+          <strong class="stat-value stat-value-small">{{ item.scanned_at }}</strong>
+        </div>
+      </div>
+      <div class="detail-text-block">
+        <h2>Résumé</h2>
+        <p>{{ item.error_message or "Aucune erreur signalée." }}</p>
+      </div>
+    </article>
+
+    <article class="panel detail-streams">
+      <h2>Flux détectés</h2>
+      {% if item.streams %}
+        <div class="stream-list">
+          {% for stream in item.streams %}
+            <div class="stream-card">
+              <code>{{ stream }}</code>
+              <button class="copy-button" type="button" data-copy="{{ stream }}">Copier</button>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="muted">Aucun flux détecté sur cette analyse.</p>
+      {% endif %}
+    </article>
+
+    <article class="panel detail-trace">
+      <h2>Trace</h2>
+      <ol class="trace-list">
+        {% if item.source_trace %}
+          {% for step in item.trace_steps %}
+            <li>
+              <strong>{{ step.stage }}</strong>
+              {% if step.kind %}<span class="muted">kind={{ step.kind }}</span>{% endif %}
+              {% if step.url %}<div class="trace-url">{{ step.url }}</div>{% endif %}
+              {% if step.message %}<div class="trace-message">{{ step.message }}</div>{% endif %}
+            </li>
+          {% endfor %}
+        {% else %}
+          <li>Aucune trace disponible.</li>
+        {% endif %}
+      </ol>
+    </article>
+  </div>
+  {% else %}
+  <div class="panel">
+    <p class="lead">L’analyse demandée n’existe pas ou a été supprimée.</p>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

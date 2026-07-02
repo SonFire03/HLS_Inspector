@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Rapport HTML - HLS Inspector{% endblock %}
+{% block content %}
+<section class="report-page">
+  <div class="detail-hero">
+    <div>
+      <p class="eyebrow">Rapport HTML</p>
+      <h1>HLS Inspector Report</h1>
+      <p class="lead">Rapport généré le {{ generated_at }} pour {{ total_items }} analyses groupées.</p>
+    </div>
+    <div class="actions-bar">
+      <a class="ghost-button" href="/">Retour</a>
+      <a class="ghost-button" href="/export/detail/json">JSON détaillé</a>
+      <a class="ghost-button" href="/export/detail/csv">CSV détaillé</a>
+    </div>
+  </div>
+
+  <section class="panel report-summary">
+    <div class="stat-grid">
+      <article class="stat-card">
+        <span class="stat-label">Analyses</span>
+        <strong class="stat-value">{{ total_items }}</strong>
+      </article>
+      <article class="stat-card">
+        <span class="stat-label">Date de génération</span>
+        <strong class="stat-value stat-value-small">{{ generated_at }}</strong>
+      </article>
+    </div>
+  </section>
+
+  <section class="report-list">
+    {% for item in history_items %}
+    <article class="panel report-item">
+      <div class="report-item-header">
+        <div>
+          <p class="eyebrow">{{ item.source_label }}</p>
+          <h2>{{ item.page_title }}</h2>
+          <p class="muted">{{ item.page_url }}</p>
+        </div>
+        <span class="badge status-{{ item.status }}">{{ item.status }}</span>
+      </div>
+      <div class="report-item-body">
+        <div><strong>Flux:</strong> {{ item.stream_count }}</div>
+        <div><strong>Date:</strong> {{ item.scanned_at }}</div>
+        {% if item.streams %}
+        <div class="report-streams">
+          {% for stream in item.streams %}
+            <code>{{ stream }}</code>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+    </article>
+    {% endfor %}
+  </section>
+</section>
+{% endblock %}

@@ -32,10 +32,11 @@
       </article>
     </div>
     <div class="actions-bar">
-      <a class="ghost-button" href="/export/json">Export JSON</a>
-      <a class="ghost-button" href="/export/csv">Export CSV</a>
-      <button class="danger-button" id="clear-history" type="button">Vider l’historique</button>
-    </div>
+    <a class="ghost-button" href="/export/json">Export JSON</a>
+    <a class="ghost-button" href="/export/csv">Export CSV</a>
+    <a class="ghost-button" href="/export/report/html" target="_blank" rel="noreferrer">Rapport HTML</a>
+    <button class="danger-button" id="clear-history" type="button">Vider l’historique</button>
+  </div>
   </div>
 </section>
 
@@ -136,7 +137,8 @@
           <td>{{ item.scanned_at }}</td>
           <td><span class="badge status-{{ item.status }}">{{ item.status }}</span></td>
           <td>
-            <button class="ghost-button details-row" type="button">Détails</button>
+            <button class="ghost-button details-row" type="button">Aperçu</button>
+            <a class="ghost-button" href="/analysis/{{ item.id }}" target="_blank" rel="noreferrer">Page</a>
             <button class="danger-button delete-row" type="button">Supprimer</button>
           </td>
         </tr>

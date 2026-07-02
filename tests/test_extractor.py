@@ -10,6 +10,7 @@ from app import (
     dedupe_urls,
     ensure_database,
     extract_m3u8_urls,
+    get_analysis_group,
     get_history_view,
     infer_source_type_from_steps,
     is_valid_http_url,
@@ -159,3 +160,26 @@ def test_grouped_history_pagination():
         assert history_view["pagination"]["total_pages"] == 2
         assert len(history_view["items"]) == 1
         assert history_view["items"][0]["stream_count"] in {0, 2}
+
+
+def test_analysis_group_detail():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = str(Path(tmpdir) / "detail.db")
+        ensure_database(db_path)
+        save_scan(
+            db_path,
+            {
+                "page_title": "Detail Page",
+                "page_url": "https://example.com/detail",
+                "m3u8_url": "https://cdn.example.com/detail.m3u8",
+                "status": "success",
+                "error_message": None,
+                "scanned_at": "2026-07-02T12:00:00+02:00",
+                "source_trace": json.dumps([{"stage": "direct_m3u8"}]),
+                "source_type": "direct",
+            },
+        )
+        item = get_analysis_group(db_path, 1)
+        assert item is not None
+        assert item["page_title"] == "Detail Page"
+        assert item["trace_steps"][0]["stage"] == "direct_m3u8"

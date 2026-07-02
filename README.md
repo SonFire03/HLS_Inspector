@@ -42,6 +42,7 @@ L’application écoute par défaut sur `http://127.0.0.1:5000`.
 ## Routes disponibles
 
 - `GET /` : interface web locale
+- `GET /analysis/<id>` : page dédiée de détail d’analyse
 - `POST /api/analyze` : analyse une URL
 - `GET /api/history` : retourne l’historique groupé avec filtres et pagination
 - `DELETE /api/history/<id>` : supprime une analyse complète
@@ -50,6 +51,7 @@ L’application écoute par défaut sur `http://127.0.0.1:5000`.
 - `GET /export/csv` : export complet CSV
 - `GET /export/detail/json` : export détaillé JSON
 - `GET /export/detail/csv` : export détaillé CSV
+- `GET /export/report/html` : rapport HTML prêt à partager
 
 ## Limites de la V1
 
@@ -62,7 +64,6 @@ L’application écoute par défaut sur `http://127.0.0.1:5000`.
 
 ## Idées V2
 
-- refactor en modules `extractor.py`, `db.py`, `routes.py`
 - export Markdown de rapport
 - statut d’analyse encore plus détaillé par source suivie
 - journal local des performances et des erreurs réseau

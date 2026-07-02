@@ -1,0 +1,261 @@
+from __future__ import annotations
+
+import json
+import sqlite3
+from pathlib import Path
+
+
+ALLOWED_SCAN_STATUSES = {"success", "no_stream_found", "error", "invalid_url"}
+
+
+def ensure_database(db_path: str) -> None:
+    Path(db_path).parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS scans (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                page_title TEXT,
+                page_url TEXT NOT NULL,
+                m3u8_url TEXT,
+                status TEXT NOT NULL,
+                error_message TEXT,
+                source_trace TEXT,
+                source_type TEXT,
+                scanned_at TEXT NOT NULL
+            )
+            """
+        )
+        existing_columns = {row[1] for row in conn.execute("PRAGMA table_info(scans)")}
+        if "source_trace" not in existing_columns:
+            conn.execute("ALTER TABLE scans ADD COLUMN source_trace TEXT")
+        if "source_type" not in existing_columns:
+            conn.execute("ALTER TABLE scans ADD COLUMN source_type TEXT")
+        conn.commit()
+
+
+def get_connection(db_path: str) -> sqlite3.Connection:
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def save_scan(db_path: str, scan: dict) -> None:
+    if scan["status"] not in ALLOWED_SCAN_STATUSES:
+        raise ValueError(f"Invalid status: {scan['status']}")
+    with get_connection(db_path) as conn:
+        conn.execute(
+            """
+            INSERT INTO scans (page_title, page_url, m3u8_url, status, error_message, source_trace, source_type, scanned_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                scan.get("page_title"),
+                scan.get("page_url"),
+                scan.get("m3u8_url"),
+                scan.get("status"),
+                scan.get("error_message"),
+                scan.get("source_trace"),
+                scan.get("source_type"),
+                scan.get("scanned_at"),
+            ),
+        )
+        conn.commit()
+
+
+def fetch_history_rows(
+    db_path: str,
+    *,
+    limit: int | None = 100,
+    offset: int = 0,
+    status: str | None = None,
+    search: str | None = None,
+) -> list[dict]:
+    query = (
+        "SELECT id, page_title, page_url, m3u8_url, status, error_message, source_trace, source_type, scanned_at "
+        "FROM scans"
+    )
+    where: list[str] = []
+    params: list[object] = []
+
+    if status and status != "all":
+        where.append("status = ?")
+        params.append(status)
+
+    if search:
+        like = f"%{search}%"
+        where.append(
+            "("
+            "page_title LIKE ? OR page_url LIKE ? OR m3u8_url LIKE ? OR status LIKE ? OR error_message LIKE ? OR source_trace LIKE ?"
+            ")"
+        )
+        params.extend([like, like, like, like, like, like])
+
+    if where:
+        query += " WHERE " + " AND ".join(where)
+
+    query += " ORDER BY scanned_at DESC, id DESC"
+
+    if limit is not None:
+        query += " LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
+
+    with get_connection(db_path) as conn:
+        rows = conn.execute(query, params).fetchall()
+    return [dict(row) for row in rows]
+
+
+def parse_trace(raw_trace: str | None) -> list[dict]:
+    if not raw_trace:
+        return []
+    try:
+        parsed = json.loads(raw_trace)
+    except json.JSONDecodeError:
+        return []
+    return parsed if isinstance(parsed, list) else []
+
+
+def infer_source_type(raw_trace: str | None) -> str:
+    from extractor import infer_source_type_from_steps
+
+    return infer_source_type_from_steps(parse_trace(raw_trace))
+
+
+def source_type_label(source_type: str) -> str:
+    labels = {
+        "direct": "Direct",
+        "iframe": "Iframe",
+        "resource": "Ressource",
+        "validation": "Validation",
+        "error": "Erreur",
+        "unknown": "Inconnue",
+    }
+    return labels.get(source_type, "Inconnue")
+
+
+def infer_source_type_from_steps(trace: list[dict]) -> str:
+    from extractor import infer_source_type_from_steps as extractor_infer_source_type_from_steps
+
+    return extractor_infer_source_type_from_steps(trace)
+
+
+def group_history_rows(rows: list[dict]) -> list[dict]:
+    grouped: list[dict] = []
+    buckets: dict[tuple[str, str], dict] = {}
+
+    for row in rows:
+        key = (row["page_url"], row["scanned_at"])
+        group = buckets.get(key)
+        if group is None:
+            group = {
+                "id": row["id"],
+                "page_title": row["page_title"],
+                "page_url": row["page_url"],
+                "status": row["status"],
+                "error_message": row["error_message"],
+                "scanned_at": row["scanned_at"],
+                "source_trace": row.get("source_trace"),
+                "source_type": row.get("source_type") or "unknown",
+                "streams": [],
+                "entries": [],
+            }
+            buckets[key] = group
+            grouped.append(group)
+
+        group["entries"].append(
+            {
+                "id": row["id"],
+                "m3u8_url": row["m3u8_url"],
+                "status": row["status"],
+                "source_type": row.get("source_type") or infer_source_type(row.get("source_trace")),
+            }
+        )
+        if row["m3u8_url"]:
+            group["streams"].append(row["m3u8_url"])
+        if not group.get("source_trace") and row.get("source_trace"):
+            group["source_trace"] = row["source_trace"]
+        if group.get("source_type") in {None, "unknown"}:
+            group["source_type"] = row.get("source_type") or infer_source_type(row.get("source_trace"))
+
+    for group in grouped:
+        group["streams"] = dedupe_urls(group["streams"])
+        group["stream_count"] = len(group["streams"])
+        group["source_type"] = group.get("source_type") or infer_source_type(group.get("source_trace"))
+        group["source_label"] = source_type_label(group["source_type"])
+
+    return grouped
+
+
+def dedupe_urls(urls):
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for url in urls:
+        if url not in seen:
+            seen.add(url)
+            ordered.append(url)
+    return ordered
+
+
+def get_history_view(
+    db_path: str,
+    *,
+    page: int = 1,
+    per_page: int = 10,
+    grouped: bool = True,
+    status: str = "all",
+    search: str = "",
+) -> dict:
+    rows = fetch_history_rows(db_path, limit=None, status=status, search=search or None)
+    items = group_history_rows(rows) if grouped else rows
+    total_items = len(items)
+    total_pages = max(1, (total_items + per_page - 1) // per_page)
+    page = min(max(1, page), total_pages)
+    start = (page - 1) * per_page
+    paged_items = items[start : start + per_page]
+    return {
+        "items": paged_items,
+        "pagination": {
+            "page": page,
+            "per_page": per_page,
+            "total_items": total_items,
+            "total_pages": total_pages,
+            "has_previous": page > 1,
+            "has_next": page < total_pages,
+        },
+        "filters": {
+            "status": status,
+            "search": search,
+            "grouped": grouped,
+        },
+    }
+
+
+def get_analysis_group(db_path: str, entry_id: int) -> dict | None:
+    with get_connection(db_path) as conn:
+        row = conn.execute("SELECT page_url, scanned_at FROM scans WHERE id = ?", (entry_id,)).fetchone()
+    if row is None:
+        return None
+    rows = fetch_history_rows(db_path, limit=None)
+    grouped = group_history_rows([r for r in rows if r["page_url"] == row["page_url"] and r["scanned_at"] == row["scanned_at"]])
+    if not grouped:
+        return None
+    item = grouped[0]
+    item["trace_steps"] = parse_trace(item.get("source_trace"))
+    return item
+
+
+def delete_analysis_group(db_path: str, entry_id: int) -> bool:
+    with get_connection(db_path) as conn:
+        row = conn.execute("SELECT page_url, scanned_at FROM scans WHERE id = ?", (entry_id,)).fetchone()
+        if row is None:
+            return False
+        cursor = conn.execute("DELETE FROM scans WHERE page_url = ? AND scanned_at = ?", (row["page_url"], row["scanned_at"]))
+        conn.commit()
+        return cursor.rowcount > 0
+
+
+def clear_history(db_path: str) -> int:
+    with get_connection(db_path) as conn:
+        cursor = conn.execute("DELETE FROM scans")
+        conn.commit()
+        return cursor.rowcount
