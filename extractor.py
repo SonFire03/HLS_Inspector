@@ -33,6 +33,20 @@ M3U8_REGEX = re.compile(
     re.IGNORECASE | re.VERBOSE,
 )
 RESOURCE_URL_REGEX = re.compile(r"""(?P<url>https?://[^\s"'<>]+|/[^\s"'<>]+)""", re.IGNORECASE)
+MP4_REGEX = re.compile(
+    r"""(?P<url>
+        (?:
+            https?://[^\s"'<>]+?\.mp4[^\s"'<>]*
+            |
+            //[^\s"'<>]+?\.mp4[^\s"'<>]*
+            |
+            /[^\s"'<>]+?\.mp4[^\s"'<>]*
+            |
+            [^\s"'<>]+?\.mp4[^\s"'<>]*
+        )
+    )""",
+    re.IGNORECASE | re.VERBOSE,
+)
 
 
 class AnalysisError(Exception):
@@ -85,15 +99,23 @@ def analyze_page(page_url: str) -> dict:
         }
     )
     streams = extract_m3u8_urls(html, response.url)
+    mp4s = extract_mp4_urls(html, response.url)
     if streams:
         trace.append({"stage": "direct_m3u8", "count": len(streams), "url": response.url})
-    if not streams:
-        streams, extra_trace = crawl_related_sources(session, html, response.url, headers)
+    if mp4s:
+        trace.append({"stage": "direct_mp4", "count": len(mp4s), "url": response.url})
+    if not streams or not mp4s:
+        related_streams, related_mp4s, extra_trace = crawl_related_sources(session, html, response.url, headers)
+        if related_streams:
+            streams = dedupe_urls(streams + related_streams)
+        if related_mp4s:
+            mp4s = dedupe_urls(mp4s + related_mp4s)
         trace.extend(extra_trace)
     return {
         "title": title,
         "page_url": response.url,
         "streams": streams,
+        "mp4s": mp4s,
         "trace": trim_trace(trace),
         "source_type": infer_source_type_from_steps(trace),
     }
@@ -155,10 +177,29 @@ def extract_m3u8_urls(html: str, base_url: str) -> list[str]:
     return dedupe_urls(discovered)
 
 
+def extract_mp4_urls(html: str, base_url: str) -> list[str]:
+    soup = BeautifulSoup(html, "html.parser")
+    discovered: list[str] = []
+
+    for tag in soup.find_all(True):
+        for attr in M3U8_ATTRS:
+            value = tag.get(attr)
+            if isinstance(value, str):
+                discovered.extend(find_mp4_candidates(value, base_url))
+
+    discovered.extend(find_mp4_candidates(html, base_url))
+    for script in soup.find_all("script"):
+        script_text = script.get_text("\n", strip=False)
+        if script_text:
+            discovered.extend(find_mp4_candidates(script_text, base_url))
+    return dedupe_urls(discovered)
+
+
 def crawl_related_sources(
     session: requests.Session, html: str, base_url: str, headers: dict[str, str]
-) -> tuple[list[str], list[dict]]:
-    discovered: list[str] = []
+) -> tuple[list[str], list[str], list[dict]]:
+    discovered_m3u8: list[str] = []
+    discovered_mp4: list[str] = []
     visited: set[str] = set()
     trace: list[dict] = []
     queue: list[tuple[str, str, int]] = []
@@ -169,11 +210,12 @@ def crawl_related_sources(
         trace.append({"stage": "embedded_urls", "count": len(queue), "url": base_url})
 
     for resource_url in collect_resource_urls(html, base_url):
-        queue.append((resource_url, "resource", 0))
+        if not is_media_asset_url(resource_url):
+            queue.append((resource_url, "resource", 0))
     if queue:
         trace.append({"stage": "related_urls", "count": len(queue), "url": base_url})
 
-    while queue and len(visited) < 12 and not discovered:
+    while queue and len(visited) < 12 and (not discovered_m3u8 or not discovered_mp4):
         target_url, kind, depth = queue.pop(0)
         if target_url in visited or depth > 2:
             continue
@@ -203,6 +245,7 @@ def crawl_related_sources(
             continue
 
         resource_streams = find_m3u8_candidates(resource_text, response.url)
+        resource_mp4s = find_mp4_candidates(resource_text, response.url)
         trace.append(
             {
                 "stage": "resource_fetched",
@@ -210,10 +253,12 @@ def crawl_related_sources(
                 "url": response.url,
                 "bytes": len(resource_body),
                 "streams": len(resource_streams),
+                "videos": len(resource_mp4s),
             }
         )
-        discovered.extend(resource_streams)
-        if discovered:
+        discovered_m3u8.extend(resource_streams)
+        discovered_mp4.extend(resource_mp4s)
+        if discovered_m3u8 and discovered_mp4:
             break
 
         for iframe_url in collect_embedded_urls(resource_text, response.url):
@@ -221,14 +266,22 @@ def crawl_related_sources(
                 queue.append((iframe_url, "iframe", depth + 1))
 
         for resource_url in collect_resource_urls(resource_text, response.url):
-            if resource_url not in visited:
+            if resource_url not in visited and not is_media_asset_url(resource_url):
                 queue.append((resource_url, "resource", depth + 1))
 
-    if not discovered:
+    if not discovered_m3u8 and not discovered_mp4:
         trace.append({"stage": "no_stream_found", "url": base_url})
     else:
-        trace.append({"stage": "stream_found", "count": len(discovered), "url": base_url})
-    return dedupe_urls(discovered), trim_trace(trace)
+        trace.append(
+            {
+                "stage": "stream_found",
+                "count": len(discovered_m3u8) + len(discovered_mp4),
+                "streams": len(discovered_m3u8),
+                "videos": len(discovered_mp4),
+                "url": base_url,
+            }
+        )
+    return dedupe_urls(discovered_m3u8), dedupe_urls(discovered_mp4), trim_trace(trace)
 
 
 def collect_resource_urls(html: str, base_url: str) -> list[str]:
@@ -278,7 +331,12 @@ def extract_urls_from_text(text: str, base_url: str) -> list[str]:
 
 def is_text_resource_url(url: str) -> bool:
     lowered = url.lower()
-    return lowered.endswith((".txt", ".js", ".json", ".html", ".htm", ".xml", ".m3u8"))
+    return lowered.endswith((".txt", ".js", ".json", ".html", ".htm", ".xml", ".m3u8", ".mp4"))
+
+
+def is_media_asset_url(url: str) -> bool:
+    lowered = url.lower()
+    return ".m3u8" in lowered or ".mp4" in lowered
 
 
 def find_m3u8_candidates(text: str, base_url: str) -> list[str]:
@@ -288,6 +346,17 @@ def find_m3u8_candidates(text: str, base_url: str) -> list[str]:
         candidate = match.group("url").strip().strip('\"\'<>(),;')
         normalized = normalize_candidate_url(candidate, base_url)
         if normalized and ".m3u8" in normalized.lower():
+            candidates.append(normalized)
+    return dedupe_urls(candidates)
+
+
+def find_mp4_candidates(text: str, base_url: str) -> list[str]:
+    text = normalize_search_text(text)
+    candidates: list[str] = []
+    for match in MP4_REGEX.finditer(text):
+        candidate = match.group("url").strip().strip('\"\'<>(),;')
+        normalized = normalize_candidate_url(candidate, base_url)
+        if normalized and ".mp4" in normalized.lower():
             candidates.append(normalized)
     return dedupe_urls(candidates)
 
@@ -334,6 +403,8 @@ def infer_source_type_from_steps(trace: list[dict]) -> str:
         return "unknown"
 
     for step in trace:
+        if step.get("stage") == "direct_mp4":
+            return "direct"
         if step.get("stage") == "direct_m3u8":
             return "direct"
 
@@ -350,4 +421,3 @@ def infer_source_type_from_steps(trace: list[dict]) -> str:
             return "error"
 
     return "unknown"
-

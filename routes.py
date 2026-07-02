@@ -81,6 +81,7 @@ def create_app(test_config: dict | None = None) -> Flask:
                     "page_title": "URL invalide",
                     "page_url": url,
                     "m3u8_url": None,
+                    "mp4_url": None,
                     "status": "invalid_url",
                     "error_message": "L'URL doit commencer par http:// ou https://.",
                     "scanned_at": scanned_at,
@@ -94,6 +95,7 @@ def create_app(test_config: dict | None = None) -> Flask:
                     "title": "URL invalide",
                     "page_url": url,
                     "streams": [],
+                    "videos": [],
                     "status": "invalid_url",
                     "error_message": "L'URL doit commencer par http:// ou https://.",
                     "scanned_at": scanned_at,
@@ -113,6 +115,7 @@ def create_app(test_config: dict | None = None) -> Flask:
                     "page_title": exc.page_title or "Sans titre",
                     "page_url": exc.page_url or url,
                     "m3u8_url": None,
+                    "mp4_url": None,
                     "status": exc.status,
                     "error_message": str(exc),
                     "scanned_at": scanned_at,
@@ -126,6 +129,7 @@ def create_app(test_config: dict | None = None) -> Flask:
                     "title": exc.page_title or "Sans titre",
                     "page_url": exc.page_url or url,
                     "streams": [],
+                    "videos": [],
                     "status": exc.status,
                     "error_message": str(exc),
                     "scanned_at": scanned_at,
@@ -135,6 +139,7 @@ def create_app(test_config: dict | None = None) -> Flask:
             )
 
         scanned_at = now_iso()
+        has_media = bool(result["streams"] or result.get("mp4s"))
         if result["streams"]:
             for stream_url in result["streams"]:
                 save_scan(
@@ -143,6 +148,7 @@ def create_app(test_config: dict | None = None) -> Flask:
                         "page_title": result["title"],
                         "page_url": result["page_url"],
                         "m3u8_url": stream_url,
+                        "mp4_url": None,
                         "status": "success",
                         "error_message": None,
                         "scanned_at": scanned_at,
@@ -150,13 +156,30 @@ def create_app(test_config: dict | None = None) -> Flask:
                         "source_type": result["source_type"],
                     },
                 )
-        else:
+        if result.get("mp4s"):
+            for video_url in result["mp4s"]:
+                save_scan(
+                    app.config["DATABASE_PATH"],
+                    {
+                        "page_title": result["title"],
+                        "page_url": result["page_url"],
+                        "m3u8_url": None,
+                        "mp4_url": video_url,
+                        "status": "success",
+                        "error_message": None,
+                        "scanned_at": scanned_at,
+                        "source_trace": json.dumps(result["trace"], ensure_ascii=False),
+                        "source_type": result["source_type"],
+                    },
+                )
+        if not has_media:
             save_scan(
                 app.config["DATABASE_PATH"],
                 {
                     "page_title": result["title"],
                     "page_url": result["page_url"],
                     "m3u8_url": None,
+                    "mp4_url": None,
                     "status": "no_stream_found",
                     "error_message": None,
                     "scanned_at": scanned_at,
@@ -167,11 +190,12 @@ def create_app(test_config: dict | None = None) -> Flask:
 
         return jsonify(
             {
-                "success": bool(result["streams"]),
+                "success": has_media,
                 "title": result["title"],
                 "page_url": result["page_url"],
                 "streams": result["streams"],
-                "status": "success" if result["streams"] else "no_stream_found",
+                "videos": result.get("mp4s", []),
+                "status": "success" if has_media else "no_stream_found",
                 "scanned_at": scanned_at,
                 "trace": result["trace"],
                 "source_type": result["source_type"],
@@ -222,13 +246,14 @@ def create_app(test_config: dict | None = None) -> Flask:
         rows = fetch_history_rows(app.config["DATABASE_PATH"], limit=None)
         buffer = io.StringIO()
         writer = csv.writer(buffer)
-        writer.writerow(["id", "page_title", "page_url", "m3u8_url", "status", "error_message", "scanned_at", "source_trace"])
+        writer.writerow(["id", "page_title", "page_url", "m3u8_url", "mp4_url", "status", "error_message", "scanned_at", "source_trace"])
         for row in rows:
             writer.writerow([
                 row["id"],
                 row["page_title"],
                 row["page_url"],
                 row["m3u8_url"],
+                row["mp4_url"],
                 row["status"],
                 row["error_message"],
                 row["scanned_at"],
@@ -262,7 +287,7 @@ def create_app(test_config: dict | None = None) -> Flask:
         history_items = group_history_rows(rows)
         buffer = io.StringIO()
         writer = csv.writer(buffer)
-        writer.writerow(["analysis_id", "page_title", "page_url", "status", "source_type", "streams", "stream_count", "error_message", "scanned_at", "source_trace"])
+        writer.writerow(["analysis_id", "page_title", "page_url", "status", "source_type", "streams", "stream_count", "videos", "video_count", "error_message", "scanned_at", "source_trace"])
         for item in history_items:
             writer.writerow([
                 item["id"],
@@ -272,6 +297,8 @@ def create_app(test_config: dict | None = None) -> Flask:
                 item["source_type"],
                 json.dumps(item["streams"], ensure_ascii=False),
                 item["stream_count"],
+                json.dumps(item["videos"], ensure_ascii=False),
+                item["video_count"],
                 item["error_message"],
                 item["scanned_at"],
                 item["source_trace"],
@@ -294,4 +321,3 @@ def create_app(test_config: dict | None = None) -> Flask:
         )
 
     return app
-

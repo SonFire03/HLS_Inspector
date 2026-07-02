@@ -10,6 +10,7 @@ from app import (
     dedupe_urls,
     ensure_database,
     extract_m3u8_urls,
+    extract_mp4_urls,
     get_analysis_group,
     get_history_view,
     infer_source_type_from_steps,
@@ -87,6 +88,46 @@ def test_no_m3u8_found():
     assert extract_m3u8_urls(html, "https://example.com") == []
 
 
+def test_extract_mp4_from_src():
+    html = '<video src="https://example.com/media/trailer.mp4"></video>'
+    assert extract_mp4_urls(html, "https://example.com/page") == ["https://example.com/media/trailer.mp4"]
+
+
+def test_extract_mp4_from_href():
+    html = '<a href="https://cdn.example.com/path/clip.mp4?token=abc">video</a>'
+    assert extract_mp4_urls(html, "https://example.com/page") == [
+        "https://cdn.example.com/path/clip.mp4?token=abc"
+    ]
+
+
+def test_extract_mp4_from_inline_js():
+    html = '<script>const videoUrl = "/assets/videos/movie.mp4";</script>'
+    assert extract_mp4_urls(html, "https://example.com/watch/123") == [
+        "https://example.com/assets/videos/movie.mp4"
+    ]
+
+
+def test_mp4_relative_url_conversion():
+    html = '<source data-url="../video/preview.mp4">'
+    assert extract_mp4_urls(html, "https://example.com/videos/episode/index.html") == [
+        "https://example.com/videos/video/preview.mp4"
+    ]
+
+
+def test_mp4_deduplication():
+    urls = [
+        "https://example.com/a.mp4",
+        "https://example.com/a.mp4",
+        "https://example.com/b.mp4",
+    ]
+    assert dedupe_urls(urls) == ["https://example.com/a.mp4", "https://example.com/b.mp4"]
+
+
+def test_no_mp4_found():
+    html = "<html><body>No video here</body></html>"
+    assert extract_mp4_urls(html, "https://example.com") == []
+
+
 def test_invalid_url_validation():
     assert is_valid_http_url("ftp://example.com/video") is False
     assert is_valid_http_url("example.com/video") is False
@@ -100,8 +141,22 @@ def test_follow_iframe_to_find_stream():
             "https://player.example.com/embed/123": '<script>const src="https://cdn.example.com/live/master.m3u8";</script>'
         }
     )
-    streams, trace = crawl_related_sources(session, html, "https://example.com/page", {"User-Agent": "test"})
+    streams, videos, trace = crawl_related_sources(session, html, "https://example.com/page", {"User-Agent": "test"})
     assert streams == ["https://cdn.example.com/live/master.m3u8"]
+    assert videos == []
+    assert any(step["stage"] == "resource_fetched" for step in trace)
+
+
+def test_follow_resource_to_find_mp4():
+    html = '<iframe src="https://player.example.com/embed/456"></iframe>'
+    session = FakeSession(
+        {
+            "https://player.example.com/embed/456": '<script>const src="/media/trailer.mp4";</script>'
+        }
+    )
+    streams, videos, trace = crawl_related_sources(session, html, "https://example.com/page", {"User-Agent": "test"})
+    assert streams == []
+    assert videos == ["https://player.example.com/media/trailer.mp4"]
     assert any(step["stage"] == "resource_fetched" for step in trace)
 
 
@@ -160,6 +215,7 @@ def test_grouped_history_pagination():
         assert history_view["pagination"]["total_pages"] == 2
         assert len(history_view["items"]) == 1
         assert history_view["items"][0]["stream_count"] in {0, 2}
+        assert "video_count" in history_view["items"][0]
 
 
 def test_analysis_group_detail():
@@ -183,3 +239,27 @@ def test_analysis_group_detail():
         assert item is not None
         assert item["page_title"] == "Detail Page"
         assert item["trace_steps"][0]["stage"] == "direct_m3u8"
+
+
+def test_grouped_history_includes_videos():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = str(Path(tmpdir) / "videos.db")
+        ensure_database(db_path)
+        save_scan(
+            db_path,
+            {
+                "page_title": "Video Page",
+                "page_url": "https://example.com/video",
+                "m3u8_url": None,
+                "mp4_url": "https://cdn.example.com/video.mp4",
+                "status": "success",
+                "error_message": None,
+                "scanned_at": "2026-07-02T13:00:00+02:00",
+                "source_trace": json.dumps([{"stage": "direct_mp4"}]),
+                "source_type": "direct",
+            },
+        )
+        history_view = get_history_view(db_path, page=1, per_page=10, grouped=True)
+        item = history_view["items"][0]
+        assert item["videos"] == ["https://cdn.example.com/video.mp4"]
+        assert item["video_count"] == 1

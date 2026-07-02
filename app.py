@@ -17,6 +17,7 @@ from extractor import (
     crawl_related_sources,
     dedupe_urls,
     extract_m3u8_urls,
+    extract_mp4_urls,
     infer_source_type_from_steps as infer_source_type_from_steps_extractor,
     is_valid_http_url,
 )
@@ -35,6 +36,7 @@ __all__ = [
     "dedupe_urls",
     "ensure_database",
     "extract_m3u8_urls",
+    "extract_mp4_urls",
     "fetch_history_rows",
     "get_analysis_group",
     "get_history_view",

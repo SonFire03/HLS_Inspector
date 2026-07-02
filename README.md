@@ -2,7 +2,7 @@
 
 Version initiale: `v1.0.0`
 
-Application locale d’inventaire et d’analyse technique de pages vidéo autorisées contenant des flux HLS.
+Application locale d’inventaire et d’analyse technique de pages vidéo autorisées contenant des flux HLS et, quand ils sont exposés dans le HTML ou les ressources liées, des liens `.mp4`.
 
 ## Avertissement légal
 
@@ -12,7 +12,7 @@ Il n’intègre aucun mécanisme de téléchargement, de contournement de sécur
 
 ## Description courte
 
-HLS Inspector est un outil local d’inventaire technique pour pages vidéo autorisées. Il analyse le HTML et les ressources liées pour extraire les liens `.m3u8` détectables sans exécuter de JavaScript distant.
+HLS Inspector est un outil local d’inventaire technique pour pages vidéo autorisées. Il analyse le HTML et les ressources liées pour extraire les liens `.m3u8` et `.mp4` détectables sans exécuter de JavaScript distant.
 
 ## Installation
 
@@ -36,7 +36,7 @@ L’application écoute par défaut sur `http://127.0.0.1:5000`.
 2. Coller une URL HTTP ou HTTPS autorisée
 3. Ou déposer un texte / fichier `.txt` contenant une ou plusieurs URLs
 4. Cliquer sur `Analyser`
-5. Consulter le titre, l’URL de page, les liens `.m3u8`, la date et le statut
+5. Consulter le titre, l’URL de page, les liens `.m3u8`, les liens `.mp4`, la date et le statut
 6. Exporter l’historique en JSON ou CSV si nécessaire
 
 ## Routes disponibles
@@ -68,3 +68,4 @@ L’application écoute par défaut sur `http://127.0.0.1:5000`.
 - statut d’analyse encore plus détaillé par source suivie
 - journal local des performances et des erreurs réseau
 - davantage de tests sur des pages réelles autorisées
+- enrichissement du rapport avec des métadonnées vidéo supplémentaires quand elles sont disponibles

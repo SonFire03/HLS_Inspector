@@ -18,6 +18,7 @@ def ensure_database(db_path: str) -> None:
                 page_title TEXT,
                 page_url TEXT NOT NULL,
                 m3u8_url TEXT,
+                mp4_url TEXT,
                 status TEXT NOT NULL,
                 error_message TEXT,
                 source_trace TEXT,
@@ -31,6 +32,8 @@ def ensure_database(db_path: str) -> None:
             conn.execute("ALTER TABLE scans ADD COLUMN source_trace TEXT")
         if "source_type" not in existing_columns:
             conn.execute("ALTER TABLE scans ADD COLUMN source_type TEXT")
+        if "mp4_url" not in existing_columns:
+            conn.execute("ALTER TABLE scans ADD COLUMN mp4_url TEXT")
         conn.commit()
 
 
@@ -46,13 +49,14 @@ def save_scan(db_path: str, scan: dict) -> None:
     with get_connection(db_path) as conn:
         conn.execute(
             """
-            INSERT INTO scans (page_title, page_url, m3u8_url, status, error_message, source_trace, source_type, scanned_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO scans (page_title, page_url, m3u8_url, mp4_url, status, error_message, source_trace, source_type, scanned_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 scan.get("page_title"),
                 scan.get("page_url"),
                 scan.get("m3u8_url"),
+                scan.get("mp4_url"),
                 scan.get("status"),
                 scan.get("error_message"),
                 scan.get("source_trace"),
@@ -72,7 +76,7 @@ def fetch_history_rows(
     search: str | None = None,
 ) -> list[dict]:
     query = (
-        "SELECT id, page_title, page_url, m3u8_url, status, error_message, source_trace, source_type, scanned_at "
+        "SELECT id, page_title, page_url, m3u8_url, mp4_url, status, error_message, source_trace, source_type, scanned_at "
         "FROM scans"
     )
     where: list[str] = []
@@ -86,10 +90,10 @@ def fetch_history_rows(
         like = f"%{search}%"
         where.append(
             "("
-            "page_title LIKE ? OR page_url LIKE ? OR m3u8_url LIKE ? OR status LIKE ? OR error_message LIKE ? OR source_trace LIKE ?"
+            "page_title LIKE ? OR page_url LIKE ? OR m3u8_url LIKE ? OR mp4_url LIKE ? OR status LIKE ? OR error_message LIKE ? OR source_trace LIKE ?"
             ")"
         )
-        params.extend([like, like, like, like, like, like])
+        params.extend([like, like, like, like, like, like, like])
 
     if where:
         query += " WHERE " + " AND ".join(where)
@@ -157,6 +161,7 @@ def group_history_rows(rows: list[dict]) -> list[dict]:
                 "source_trace": row.get("source_trace"),
                 "source_type": row.get("source_type") or "unknown",
                 "streams": [],
+                "videos": [],
                 "entries": [],
             }
             buckets[key] = group
@@ -166,12 +171,15 @@ def group_history_rows(rows: list[dict]) -> list[dict]:
             {
                 "id": row["id"],
                 "m3u8_url": row["m3u8_url"],
+                "mp4_url": row.get("mp4_url"),
                 "status": row["status"],
                 "source_type": row.get("source_type") or infer_source_type(row.get("source_trace")),
             }
         )
         if row["m3u8_url"]:
             group["streams"].append(row["m3u8_url"])
+        if row.get("mp4_url"):
+            group["videos"].append(row["mp4_url"])
         if not group.get("source_trace") and row.get("source_trace"):
             group["source_trace"] = row["source_trace"]
         if group.get("source_type") in {None, "unknown"}:
@@ -179,7 +187,9 @@ def group_history_rows(rows: list[dict]) -> list[dict]:
 
     for group in grouped:
         group["streams"] = dedupe_urls(group["streams"])
+        group["videos"] = dedupe_urls(group["videos"])
         group["stream_count"] = len(group["streams"])
+        group["video_count"] = len(group["videos"])
         group["source_type"] = group.get("source_type") or infer_source_type(group.get("source_trace"))
         group["source_label"] = source_type_label(group["source_type"])
 

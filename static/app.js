@@ -13,6 +13,7 @@ const detailsError = document.getElementById("details-error");
 const detailsStreams = document.getElementById("details-streams");
 const detailsTrace = document.getElementById("details-trace");
 const detailsSourceType = document.getElementById("details-source-type");
+const detailsVideos = document.getElementById("details-videos");
 const historySearch = document.getElementById("history-search");
 const historyStatus = document.getElementById("history-status");
 const historyPerPage = document.getElementById("history-per-page");
@@ -25,6 +26,7 @@ const historyCache = new Map();
 const historyMeta = document.getElementById("history-meta");
 const statAnalyses = document.getElementById("stat-analyses");
 const statStreams = document.getElementById("stat-streams");
+const statVideos = document.getElementById("stat-videos");
 const statDirect = document.getElementById("stat-direct");
 const statSources = document.getElementById("stat-sources");
 
@@ -51,6 +53,7 @@ function appendHistoryRow(item) {
   const row = document.createElement("tr");
   row.dataset.id = item.id;
   const streams = Array.isArray(item.streams) ? item.streams : [];
+  const videos = Array.isArray(item.videos) ? item.videos : [];
   row.innerHTML = `
     <td>${item.id}</td>
     <td>${escapeHtml(item.page_title || "Sans titre")}</td>
@@ -62,6 +65,18 @@ function appendHistoryRow(item) {
             <div class="stream-pill">
               <code>${escapeHtml(stream)}</code>
               <button class="copy-button" type="button" data-copy="${escapeAttr(stream)}">Copier</button>
+            </div>
+          `).join("")}
+        </div>
+      ` : '<span class="muted">Aucun</span>'}
+    </td>
+    <td>
+      ${videos.length ? `
+        <div class="stream-cell">
+          ${videos.map((video) => `
+            <div class="stream-pill">
+              <code>${escapeHtml(video)}</code>
+              <button class="copy-button" type="button" data-copy="${escapeAttr(video)}">Copier</button>
             </div>
           `).join("")}
         </div>
@@ -134,11 +149,15 @@ async function refreshHistory() {
 function updateHeroStats(items, pagination) {
   const totalAnalyses = pagination?.total_items ?? items.length;
   const totalStreams = items.reduce((sum, item) => sum + Number(item.stream_count || 0), 0);
+  const totalVideos = items.reduce((sum, item) => sum + Number(item.video_count || 0), 0);
   const directCount = items.filter((item) => item.source_type === "direct").length;
   const sourceTypes = new Set(items.map((item) => item.source_type || "unknown"));
 
   statAnalyses.textContent = String(totalAnalyses);
   statStreams.textContent = String(totalStreams);
+  if (statVideos) {
+    statVideos.textContent = String(totalVideos);
+  }
   statDirect.textContent = String(directCount);
   statSources.textContent = String(sourceTypes.size);
 }
@@ -170,6 +189,28 @@ function openDetails(item) {
     });
   } else {
     detailsStreams.textContent = item.status === "success" ? "Flux non présent sur cette ligne." : "Aucun";
+  }
+
+  if (detailsVideos) {
+    detailsVideos.innerHTML = "";
+    const videos = Array.isArray(item.videos) ? item.videos : [];
+    if (videos.length) {
+      videos.forEach((video) => {
+        const wrapper = document.createElement("div");
+        wrapper.className = "stream-pill";
+        const code = document.createElement("code");
+        code.textContent = video;
+        const copy = document.createElement("button");
+        copy.type = "button";
+        copy.className = "copy-button";
+        copy.dataset.copy = video;
+        copy.textContent = "Copier";
+        wrapper.append(code, copy);
+        detailsVideos.appendChild(wrapper);
+      });
+    } else {
+      detailsVideos.textContent = item.status === "success" ? "Vidéos non présentes sur cette ligne." : "Aucune";
+    }
   }
 
   detailsTrace.innerHTML = "";
@@ -307,7 +348,7 @@ document.addEventListener("click", async (event) => {
   if (!target.classList.contains("copy-button")) return;
   await navigator.clipboard.writeText(target.dataset.copy);
   if (statusMessage) {
-    setStatus("Lien .m3u8 copié dans le presse-papiers.");
+    setStatus("Lien copié dans le presse-papiers.");
   }
 });
 

@@ -59,6 +59,22 @@
       {% endif %}
     </article>
 
+    <article class="panel detail-streams">
+      <h2>Vidéos détectées</h2>
+      {% if item.videos %}
+        <div class="stream-list">
+          {% for video in item.videos %}
+            <div class="stream-card">
+              <code>{{ video }}</code>
+              <button class="copy-button" type="button" data-copy="{{ video }}">Copier</button>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="muted">Aucune vidéo détectée sur cette analyse.</p>
+      {% endif %}
+    </article>
+
     <article class="panel detail-trace">
       <h2>Trace</h2>
       <ol class="trace-list">

@@ -41,11 +41,19 @@
       </div>
       <div class="report-item-body">
         <div><strong>Flux:</strong> {{ item.stream_count }}</div>
+        <div><strong>Vidéos:</strong> {{ item.video_count }}</div>
         <div><strong>Date:</strong> {{ item.scanned_at }}</div>
         {% if item.streams %}
         <div class="report-streams">
           {% for stream in item.streams %}
             <code>{{ stream }}</code>
+          {% endfor %}
+        </div>
+        {% endif %}
+        {% if item.videos %}
+        <div class="report-streams">
+          {% for video in item.videos %}
+            <code>{{ video }}</code>
           {% endfor %}
         </div>
         {% endif %}
