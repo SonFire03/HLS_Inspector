@@ -796,6 +796,13 @@ code {
   margin-top: 14px;
 }
 
+.report-badges {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .report-streams {
   display: grid;
   gap: 8px;

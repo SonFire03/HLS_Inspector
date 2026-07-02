@@ -52,6 +52,7 @@ L’application écoute par défaut sur `http://127.0.0.1:5000`.
 - `GET /export/detail/json` : export détaillé JSON
 - `GET /export/detail/csv` : export détaillé CSV
 - `GET /export/report/html` : rapport HTML prêt à partager
+- `GET /export/report/markdown` : rapport Markdown prêt à archiver
 
 ### Filtres d’historique
 

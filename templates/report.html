@@ -12,6 +12,7 @@
       <a class="ghost-button" href="/">Retour</a>
       <a class="ghost-button" href="/export/detail/json">JSON détaillé</a>
       <a class="ghost-button" href="/export/detail/csv">CSV détaillé</a>
+      <a class="ghost-button" href="/export/report/markdown">Markdown</a>
     </div>
   </div>
 
@@ -19,7 +20,23 @@
     <div class="stat-grid">
       <article class="stat-card">
         <span class="stat-label">Analyses</span>
-        <strong class="stat-value">{{ total_items }}</strong>
+        <strong class="stat-value">{{ report_stats.total_items }}</strong>
+      </article>
+      <article class="stat-card">
+        <span class="stat-label">Flux .m3u8</span>
+        <strong class="stat-value">{{ report_stats.total_streams }}</strong>
+      </article>
+      <article class="stat-card">
+        <span class="stat-label">Vidéos .mp4</span>
+        <strong class="stat-value">{{ report_stats.total_videos }}</strong>
+      </article>
+      <article class="stat-card">
+        <span class="stat-label">Sources directes</span>
+        <strong class="stat-value">{{ report_stats.direct_count }}</strong>
+      </article>
+      <article class="stat-card">
+        <span class="stat-label">Sans flux</span>
+        <strong class="stat-value">{{ report_stats.no_stream_count }}</strong>
       </article>
       <article class="stat-card">
         <span class="stat-label">Date de génération</span>
@@ -37,12 +54,18 @@
           <h2>{{ item.page_title }}</h2>
           <p class="muted">{{ item.page_url }}</p>
         </div>
-        <span class="badge status-{{ item.status }}">{{ item.status }}</span>
+        <div class="report-badges">
+          <span class="badge badge-source source-{{ item.source_type }}">{{ item.source_label }}</span>
+          <span class="badge status-{{ item.status }}">{{ item.status }}</span>
+        </div>
       </div>
       <div class="report-item-body">
         <div><strong>Flux:</strong> {{ item.stream_count }}</div>
         <div><strong>Vidéos:</strong> {{ item.video_count }}</div>
         <div><strong>Date:</strong> {{ item.scanned_at }}</div>
+        {% if item.error_message %}
+        <div><strong>Erreur:</strong> {{ item.error_message }}</div>
+        {% endif %}
         {% if item.streams %}
         <div class="report-streams">
           {% for stream in item.streams %}

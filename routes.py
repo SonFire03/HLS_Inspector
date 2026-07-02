@@ -41,6 +41,81 @@ def clamp_int(value: str | None, default: int, minimum: int | None = None, maxim
     return parsed
 
 
+def build_report_summary(history_items: list[dict]) -> dict:
+    total_items = len(history_items)
+    total_streams = sum(int(item.get("stream_count", 0) or 0) for item in history_items)
+    total_videos = sum(int(item.get("video_count", 0) or 0) for item in history_items)
+    success_count = sum(1 for item in history_items if item.get("status") == "success")
+    no_stream_count = sum(1 for item in history_items if item.get("status") == "no_stream_found")
+    error_count = sum(1 for item in history_items if item.get("status") == "error")
+    invalid_count = sum(1 for item in history_items if item.get("status") == "invalid_url")
+    direct_count = sum(1 for item in history_items if item.get("source_type") == "direct")
+    return {
+        "total_items": total_items,
+        "total_streams": total_streams,
+        "total_videos": total_videos,
+        "success_count": success_count,
+        "no_stream_count": no_stream_count,
+        "error_count": error_count,
+        "invalid_count": invalid_count,
+        "direct_count": direct_count,
+    }
+
+
+def markdown_escape(value: object) -> str:
+    return str(value if value is not None else "-").replace("|", "\\|").replace("\n", " ")
+
+
+def build_report_markdown(history_items: list[dict], generated_at: str) -> str:
+    stats = build_report_summary(history_items)
+    lines = [
+        "# HLS Inspector Report",
+        "",
+        f"- Generated at: {generated_at}",
+        f"- Analyses: {stats['total_items']}",
+        f"- Flux .m3u8: {stats['total_streams']}",
+        f"- Vidéos .mp4: {stats['total_videos']}",
+        f"- Success: {stats['success_count']}",
+        f"- No stream found: {stats['no_stream_count']}",
+        f"- Error: {stats['error_count']}",
+        f"- Invalid URL: {stats['invalid_count']}",
+        f"- Direct sources: {stats['direct_count']}",
+        "",
+        "## Analyses",
+    ]
+
+    if not history_items:
+        lines.extend(["- No grouped analyses available.", ""])
+        return "\n".join(lines)
+
+    for item in history_items:
+        lines.extend(
+            [
+                "",
+                f"### {markdown_escape(item.get('page_title') or 'Sans titre')}",
+                f"- ID: {markdown_escape(item.get('id'))}",
+                f"- URL: {markdown_escape(item.get('page_url'))}",
+                f"- Status: {markdown_escape(item.get('status'))}",
+                f"- Source: {markdown_escape(item.get('source_label'))}",
+                f"- Date: {markdown_escape(item.get('scanned_at'))}",
+                f"- Flux count: {markdown_escape(item.get('stream_count', 0))}",
+                f"- Video count: {markdown_escape(item.get('video_count', 0))}",
+            ]
+        )
+        if item.get("streams"):
+            lines.append("- Flux:")
+            for stream in item["streams"]:
+                lines.append(f"  - `{markdown_escape(stream)}`")
+        if item.get("videos"):
+            lines.append("- Vidéos:")
+            for video in item["videos"]:
+                lines.append(f"  - `{markdown_escape(video)}`")
+        if item.get("error_message"):
+            lines.append(f"- Error: {markdown_escape(item['error_message'])}")
+    lines.append("")
+    return "\n".join(lines)
+
+
 def create_app(test_config: dict | None = None) -> Flask:
     app = Flask(__name__)
     app.config["DATABASE_PATH"] = str(DEFAULT_DB_PATH)
@@ -316,11 +391,26 @@ def create_app(test_config: dict | None = None) -> Flask:
     def export_report_html():
         rows = fetch_history_rows(app.config["DATABASE_PATH"], limit=None)
         history_items = group_history_rows(rows)
+        report_stats = build_report_summary(history_items)
+        generated_at = now_iso()
         return render_template(
             "report.html",
-            generated_at=now_iso(),
+            generated_at=generated_at,
             history_items=history_items,
-            total_items=len(history_items),
+            total_items=report_stats["total_items"],
+            report_stats=report_stats,
+        )
+
+    @app.get("/export/report/markdown")
+    def export_report_markdown():
+        rows = fetch_history_rows(app.config["DATABASE_PATH"], limit=None)
+        history_items = group_history_rows(rows)
+        generated_at = now_iso()
+        payload = build_report_markdown(history_items, generated_at)
+        return Response(
+            payload,
+            mimetype="text/markdown; charset=utf-8",
+            headers={"Content-Disposition": "attachment; filename=hls_inspector_report.md"},
         )
 
     return app

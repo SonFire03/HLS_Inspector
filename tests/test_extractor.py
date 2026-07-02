@@ -8,6 +8,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from app import (
     crawl_related_sources,
     dedupe_urls,
+    create_app,
     ensure_database,
     extract_m3u8_urls,
     extract_mp4_urls,
@@ -319,3 +320,35 @@ def test_history_media_filter():
         assert [item["page_title"] for item in streams_only["items"]] == ["Streams Only"]
         assert [item["page_title"] for item in videos_only["items"]] == ["Videos Only"]
         assert [item["page_title"] for item in both["items"]] == ["Both"]
+
+
+def test_markdown_report_export():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = str(Path(tmpdir) / "report.db")
+        ensure_database(db_path)
+        save_scan(
+            db_path,
+            {
+                "page_title": "Report Page",
+                "page_url": "https://example.com/report",
+                "m3u8_url": "https://cdn.example.com/report.m3u8",
+                "mp4_url": "https://cdn.example.com/report.mp4",
+                "status": "success",
+                "error_message": None,
+                "scanned_at": "2026-07-02T17:00:00+02:00",
+                "source_trace": json.dumps([{"stage": "direct_m3u8"}, {"stage": "direct_mp4"}]),
+                "source_type": "direct",
+            },
+        )
+        app = create_app({"TESTING": True, "DATABASE_PATH": db_path})
+        client = app.test_client()
+
+        response = client.get("/export/report/markdown")
+        body = response.get_data(as_text=True)
+
+        assert response.status_code == 200
+        assert response.mimetype == "text/markdown"
+        assert "HLS Inspector Report" in body
+        assert "Report Page" in body
+        assert "report.m3u8" in body
+        assert "report.mp4" in body
