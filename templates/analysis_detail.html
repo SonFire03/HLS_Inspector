@@ -64,7 +64,10 @@
           {% for stream in item.streams %}
             <div class="stream-card">
               <code>{{ stream }}</code>
-              <button class="copy-button" type="button" data-copy="{{ stream }}">Copier</button>
+              <div class="pill-actions">
+                <button class="copy-button" type="button" data-copy="{{ stream }}">Copier</button>
+                <button class="open-button" type="button" data-open="{{ stream }}">Ouvrir</button>
+              </div>
             </div>
           {% endfor %}
         </div>
@@ -80,7 +83,10 @@
           {% for video in item.videos %}
             <div class="stream-card">
               <code>{{ video }}</code>
-              <button class="copy-button" type="button" data-copy="{{ video }}">Copier</button>
+              <div class="pill-actions">
+                <button class="copy-button" type="button" data-copy="{{ video }}">Copier</button>
+                <button class="open-button" type="button" data-open="{{ video }}">Ouvrir</button>
+              </div>
             </div>
           {% endfor %}
         </div>
@@ -97,7 +103,10 @@
           {% for asset in extra_assets %}
             <div class="stream-card">
               <code>{{ asset }}</code>
-              <button class="copy-button" type="button" data-copy="{{ asset }}">Copier</button>
+              <div class="pill-actions">
+                <button class="copy-button" type="button" data-copy="{{ asset }}">Copier</button>
+                <button class="open-button" type="button" data-open="{{ asset }}">Ouvrir</button>
+              </div>
             </div>
           {% endfor %}
         </div>

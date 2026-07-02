@@ -98,11 +98,27 @@ function renderCopyButton(value, label = "Copier") {
   return `<button class="copy-button" type="button" data-copy="${escapeAttr(value)}">${label}</button>`;
 }
 
+function renderOpenButton(value, label = "Ouvrir") {
+  if (!value) {
+    return `<button class="open-button" type="button" disabled>${label}</button>`;
+  }
+  return `<button class="open-button" type="button" data-open="${escapeAttr(value)}">${label}</button>`;
+}
+
+function renderValueActions(value, copyLabel = "Copier", openLabel = "Ouvrir") {
+  return `
+    <div class="pill-actions">
+      ${renderCopyButton(value, copyLabel)}
+      ${renderOpenButton(value, openLabel)}
+    </div>
+  `;
+}
+
 function renderStreamBlock(value, label = "Copier") {
   return `
     <div class="stream-pill">
       <code title="${escapeAttr(value)}">${escapeText(value)}</code>
-      ${renderCopyButton(value, label)}
+      ${renderValueActions(value, label)}
     </div>
   `;
 }
@@ -163,8 +179,8 @@ function renderHistoryCard(item) {
       </div>
     </div>
     <div class="history-card-actions">
-      ${renderCopyButton(item.page_url, "Copier URL")}
-      ${renderCopyButton(primaryStream, "Copier flux")}
+      ${renderValueActions(item.page_url, "Copier URL", "Ouvrir URL")}
+      ${renderValueActions(primaryStream, "Copier flux", "Ouvrir flux")}
       <button class="ghost-button details-row" type="button">Voir détails</button>
       <a class="ghost-button" href="/analysis/${item.id}" target="_blank" rel="noreferrer">Aperçu</a>
       <button class="danger-button delete-row" type="button">Supprimer</button>
@@ -185,7 +201,7 @@ function renderHistoryTableRow(item) {
     <td class="cell-truncate">
       <div class="cell-link-row">
         <a href="${escapeAttr(item.page_url)}" target="_blank" rel="noreferrer" title="${escapeAttr(item.page_url)}">${escapeText(item.page_url)}</a>
-        ${renderCopyButton(item.page_url)}
+        ${renderValueActions(item.page_url, "Copier", "Ouvrir")}
       </div>
     </td>
     <td>${renderCompactValueList(streams, "Aucun")}</td>
@@ -237,7 +253,7 @@ function renderLatestAnalysis(item) {
             ${primaryStream ? `
               <div class="stream-pill">
                 <code title="${escapeAttr(primaryStream)}">${escapeText(primaryStream)}</code>
-                ${renderCopyButton(primaryStream)}
+                ${renderValueActions(primaryStream)}
               </div>
               ${getItemStreams(item).length > 1 ? `<span class="muted">+ ${getItemStreams(item).length - 1} autre(s)</span>` : ""}
             ` : '<span class="muted">Aucun flux détecté</span>'}
@@ -485,12 +501,20 @@ function openDetails(item) {
       wrapper.className = "stream-pill";
       const code = document.createElement("code");
       code.textContent = stream;
+      const actions = document.createElement("div");
+      actions.className = "pill-actions";
       const copy = document.createElement("button");
       copy.type = "button";
       copy.className = "copy-button";
       copy.dataset.copy = stream;
       copy.textContent = "Copier";
-      wrapper.append(code, copy);
+      const open = document.createElement("button");
+      open.type = "button";
+      open.className = "open-button";
+      open.dataset.open = stream;
+      open.textContent = "Ouvrir";
+      actions.append(copy, open);
+      wrapper.append(code, actions);
       detailsStreams.appendChild(wrapper);
     });
   } else {
@@ -506,12 +530,20 @@ function openDetails(item) {
         wrapper.className = "stream-pill";
         const code = document.createElement("code");
         code.textContent = video;
+        const actions = document.createElement("div");
+        actions.className = "pill-actions";
         const copy = document.createElement("button");
         copy.type = "button";
         copy.className = "copy-button";
         copy.dataset.copy = video;
         copy.textContent = "Copier";
-        wrapper.append(code, copy);
+        const open = document.createElement("button");
+        open.type = "button";
+        open.className = "open-button";
+        open.dataset.open = video;
+        open.textContent = "Ouvrir";
+        actions.append(copy, open);
+        wrapper.append(code, actions);
         detailsVideos.appendChild(wrapper);
       });
     } else {
@@ -532,12 +564,20 @@ function openDetails(item) {
         wrapper.className = "stream-pill";
         const code = document.createElement("code");
         code.textContent = asset;
+        const actions = document.createElement("div");
+        actions.className = "pill-actions";
         const copy = document.createElement("button");
         copy.type = "button";
         copy.className = "copy-button";
         copy.dataset.copy = asset;
         copy.textContent = "Copier";
-        wrapper.append(code, copy);
+        const open = document.createElement("button");
+        open.type = "button";
+        open.className = "open-button";
+        open.dataset.open = asset;
+        open.textContent = "Ouvrir";
+        actions.append(copy, open);
+        wrapper.append(code, actions);
         detailsAssets.appendChild(wrapper);
       });
     } else {
@@ -683,7 +723,7 @@ async function handleHistoryAction(event) {
     }
     return;
   }
- 
+
 }
 
 if (historyCards) {
@@ -706,15 +746,23 @@ if (latestAnalysisContent) {
 
 document.addEventListener("click", async (event) => {
   const target = event.target;
-  if (!target.classList.contains("copy-button")) return;
-  const text = target.dataset.copy;
-  if (!text) return;
-  try {
-    await navigator.clipboard.writeText(text);
-    setStatus("Lien copié dans le presse-papiers.");
-    showToast("Copié");
-  } catch {
-    setStatus("Copie impossible.", true);
+  if (target.dataset.copy) {
+    const text = target.dataset.copy;
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      setStatus("Lien copié dans le presse-papiers.");
+      showToast("Copié");
+    } catch {
+      setStatus("Copie impossible.", true);
+    }
+    return;
+  }
+
+  if (target.dataset.open) {
+    const url = target.dataset.open;
+    if (!url) return;
+    window.open(url, "_blank", "noopener,noreferrer");
   }
 });
 

@@ -655,6 +655,12 @@ td {
   gap: 8px;
 }
 
+.pill-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 code {
   display: block;
   padding: 10px 12px;
@@ -679,6 +685,19 @@ code {
   background: rgba(95, 215, 200, 0.14);
   color: #bfefe7;
   border: 1px solid rgba(95, 215, 200, 0.24);
+}
+
+.open-button {
+  align-self: flex-start;
+  background: rgba(85, 199, 255, 0.12);
+  color: #d9f0ff;
+  border: 1px solid rgba(85, 199, 255, 0.24);
+}
+
+.open-button:disabled,
+.copy-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .badge {

@@ -166,7 +166,10 @@
           {% if latest_item.streams %}
             <div class="stream-pill">
               <code>{{ latest_item.streams[0] }}</code>
-              <button class="copy-button" type="button" data-copy="{{ latest_item.streams[0] }}">Copier</button>
+              <div class="pill-actions">
+                <button class="copy-button" type="button" data-copy="{{ latest_item.streams[0] }}">Copier</button>
+                <button class="open-button" type="button" data-open="{{ latest_item.streams[0] }}">Ouvrir</button>
+              </div>
             </div>
             {% if latest_item.streams|length > 1 %}
               <span class="muted">+ {{ latest_item.streams|length - 1 }} autre(s)</span>
@@ -273,10 +276,13 @@
           <div class="history-card-block">
             <span class="latest-label">Flux détecté</span>
             {% if first_stream %}
-              <div class="stream-pill">
-                <code>{{ first_stream }}</code>
-                <button class="copy-button" type="button" data-copy="{{ first_stream }}">Copier</button>
-              </div>
+        <div class="stream-pill">
+          <code>{{ first_stream }}</code>
+          <div class="pill-actions">
+            <button class="copy-button" type="button" data-copy="{{ first_stream }}">Copier</button>
+            <button class="open-button" type="button" data-open="{{ first_stream }}">Ouvrir</button>
+          </div>
+        </div>
             {% else %}
               <span class="muted">Aucun flux détecté</span>
             {% endif %}
@@ -288,15 +294,18 @@
             <span class="mini-chip">Source {{ item.source_label }}</span>
           </div>
         </div>
-        <div class="history-card-actions">
-          <button class="ghost-button copy-page-button" type="button" data-copy="{{ item.page_url }}">Copier URL</button>
-          {% if first_stream %}
-          <button class="ghost-button copy-stream-button" type="button" data-copy="{{ first_stream }}">Copier flux</button>
-          {% else %}
-          <button class="ghost-button copy-stream-button" type="button" disabled>Copier flux</button>
-          {% endif %}
-          <button class="ghost-button details-row" type="button">Voir détails</button>
-          <a class="ghost-button" href="/analysis/{{ item.id }}" target="_blank" rel="noreferrer">Aperçu</a>
+      <div class="history-card-actions">
+        <button class="ghost-button copy-page-button" type="button" data-copy="{{ item.page_url }}">Copier URL</button>
+        <button class="ghost-button open-page-button" type="button" data-open="{{ item.page_url }}">Ouvrir URL</button>
+        {% if first_stream %}
+        <button class="ghost-button copy-stream-button" type="button" data-copy="{{ first_stream }}">Copier flux</button>
+        <button class="ghost-button open-stream-button" type="button" data-open="{{ first_stream }}">Ouvrir flux</button>
+        {% else %}
+        <button class="ghost-button copy-stream-button" type="button" disabled>Copier flux</button>
+        <button class="ghost-button open-stream-button" type="button" disabled>Ouvrir flux</button>
+        {% endif %}
+        <button class="ghost-button details-row" type="button">Voir détails</button>
+        <a class="ghost-button" href="/analysis/{{ item.id }}" target="_blank" rel="noreferrer">Aperçu</a>
           <button class="danger-button delete-row" type="button">Supprimer</button>
         </div>
       </article>
@@ -325,18 +334,24 @@
             <td>{{ item.id }}</td>
             <td>{{ item.page_title or "Sans titre" }}</td>
             <td class="cell-truncate">
-              <div class="cell-link-row">
-                <a href="{{ item.page_url }}" target="_blank" rel="noreferrer">{{ item.page_url }}</a>
-                <button class="copy-button" type="button" data-copy="{{ item.page_url }}">Copier</button>
-              </div>
-            </td>
+                <div class="cell-link-row">
+                  <a href="{{ item.page_url }}" target="_blank" rel="noreferrer">{{ item.page_url }}</a>
+                  <div class="pill-actions">
+                    <button class="copy-button" type="button" data-copy="{{ item.page_url }}">Copier</button>
+                    <button class="open-button" type="button" data-open="{{ item.page_url }}">Ouvrir</button>
+                  </div>
+                </div>
+              </td>
             <td>
               {% if item.streams %}
                 <div class="cell-stack">
                   {% for stream in item.streams %}
                     <div class="stream-pill">
                       <code>{{ stream }}</code>
-                      <button class="copy-button" type="button" data-copy="{{ stream }}">Copier</button>
+                      <div class="pill-actions">
+                        <button class="copy-button" type="button" data-copy="{{ stream }}">Copier</button>
+                        <button class="open-button" type="button" data-open="{{ stream }}">Ouvrir</button>
+                      </div>
                     </div>
                   {% endfor %}
                 </div>
@@ -350,7 +365,10 @@
                   {% for video in item.videos %}
                     <div class="stream-pill">
                       <code>{{ video }}</code>
-                      <button class="copy-button" type="button" data-copy="{{ video }}">Copier</button>
+                      <div class="pill-actions">
+                        <button class="copy-button" type="button" data-copy="{{ video }}">Copier</button>
+                        <button class="open-button" type="button" data-open="{{ video }}">Ouvrir</button>
+                      </div>
                     </div>
                   {% endfor %}
                 </div>
@@ -365,7 +383,10 @@
                   {% for asset in extra_assets %}
                     <div class="stream-pill">
                       <code>{{ asset }}</code>
-                      <button class="copy-button" type="button" data-copy="{{ asset }}">Copier</button>
+                      <div class="pill-actions">
+                        <button class="copy-button" type="button" data-copy="{{ asset }}">Copier</button>
+                        <button class="open-button" type="button" data-open="{{ asset }}">Ouvrir</button>
+                      </div>
                     </div>
                   {% endfor %}
                 </div>
