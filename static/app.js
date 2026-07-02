@@ -30,6 +30,13 @@ const statStreams = document.getElementById("stat-streams");
 const statVideos = document.getElementById("stat-videos");
 const statDirect = document.getElementById("stat-direct");
 const statSources = document.getElementById("stat-sources");
+const dashboardTotal = document.getElementById("dashboard-total");
+const dashboardStatusTotal = document.getElementById("dashboard-status-total");
+const dashboardMediaTotal = document.getElementById("dashboard-media-total");
+const dashboardSourceTotal = document.getElementById("dashboard-source-total");
+const dashboardStatusChart = document.getElementById("dashboard-status-chart");
+const dashboardMediaChart = document.getElementById("dashboard-media-chart");
+const dashboardSourceChart = document.getElementById("dashboard-source-chart");
 
 const historyState = {
   page: 1,
@@ -140,6 +147,7 @@ async function refreshHistory() {
   historyCache.clear();
   data.items.forEach(appendHistoryRow);
   updateHeroStats(data.items, data.pagination);
+  updateDashboard(data.summary);
 
   const pagination = data.pagination || {};
   const totalItems = pagination.total_items ?? data.items.length;
@@ -163,6 +171,80 @@ function updateHeroStats(items, pagination) {
   }
   statDirect.textContent = String(directCount);
   statSources.textContent = String(sourceTypes.size);
+}
+
+function renderChart(container, entries, emptyLabel) {
+  if (!container) return;
+  container.innerHTML = "";
+  if (!entries.length) {
+    const empty = document.createElement("div");
+    empty.className = "chart-empty";
+    empty.textContent = emptyLabel;
+    container.appendChild(empty);
+    return;
+  }
+  const maxValue = Math.max(...entries.map((entry) => entry.value), 1);
+  entries.forEach((entry) => {
+    const row = document.createElement("div");
+    row.className = "chart-row";
+
+    const label = document.createElement("span");
+    label.className = "chart-label";
+    label.textContent = entry.label;
+
+    const barTrack = document.createElement("div");
+    barTrack.className = "chart-bar";
+
+    const barFill = document.createElement("div");
+    barFill.className = `chart-fill ${entry.variant || ""}`.trim();
+    barFill.style.width = `${Math.max(8, (entry.value / maxValue) * 100)}%`;
+    barTrack.appendChild(barFill);
+
+    const value = document.createElement("span");
+    value.className = "chart-value";
+    value.textContent = String(entry.value);
+
+    row.append(label, barTrack, value);
+    container.appendChild(row);
+  });
+}
+
+function updateDashboard(summary) {
+  const safeSummary = summary || {};
+  const statusCounts = safeSummary.status_counts || {};
+  const mediaCounts = safeSummary.media_counts || {};
+  const sourceCounts = safeSummary.source_counts || {};
+
+  const statusEntries = Object.entries(statusCounts)
+    .map(([label, value]) => ({ label, value, variant: `status-${label}` }))
+    .sort((a, b) => b.value - a.value);
+  const mediaEntries = Object.entries(mediaCounts)
+    .map(([label, value]) => ({ label, value, variant: `media-${label}` }))
+    .sort((a, b) => b.value - a.value);
+  const sourceEntries = Object.entries(sourceCounts)
+    .map(([label, value]) => ({ label, value, variant: `source-${label}` }))
+    .sort((a, b) => b.value - a.value);
+
+  renderChart(dashboardStatusChart, statusEntries, "Aucune donnée de statut.");
+  renderChart(dashboardMediaChart, mediaEntries, "Aucune donnée média.");
+  renderChart(dashboardSourceChart, sourceEntries, "Aucune donnée source.");
+
+  const statusTotal = statusEntries.reduce((sum, entry) => sum + entry.value, 0);
+  const mediaTotal = mediaEntries.reduce((sum, entry) => sum + entry.value, 0);
+  const sourceTotal = sourceEntries.reduce((sum, entry) => sum + entry.value, 0);
+
+  if (dashboardTotal) {
+    dashboardTotal.textContent = `${safeSummary.total_items ?? 0} analyses filtrées`;
+  }
+  if (dashboardStatusTotal) {
+    dashboardStatusTotal.textContent = `${statusTotal} entrées`;
+  }
+  if (dashboardMediaTotal) {
+    dashboardMediaTotal.textContent = `${mediaTotal} entrées`;
+  }
+  if (dashboardSourceTotal) {
+    dashboardSourceTotal.textContent = `${sourceTotal} entrées`;
+  }
 }
 
 function openDetails(item) {

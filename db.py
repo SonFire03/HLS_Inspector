@@ -196,6 +196,38 @@ def group_history_rows(rows: list[dict]) -> list[dict]:
     return grouped
 
 
+def summarize_history_rows(rows: list[dict], grouped: bool = True) -> dict:
+    items = group_history_rows(rows) if grouped else rows
+    status_counts: dict[str, int] = {}
+    media_counts = {"streams": 0, "videos": 0, "both": 0, "empty": 0}
+    source_counts: dict[str, int] = {}
+
+    for item in items:
+        status = item.get("status") or "unknown"
+        status_counts[status] = status_counts.get(status, 0) + 1
+
+        stream_count = int(item.get("stream_count", 0) or 0)
+        video_count = int(item.get("video_count", 0) or 0)
+        if stream_count > 0 and video_count > 0:
+            media_counts["both"] += 1
+        elif stream_count > 0:
+            media_counts["streams"] += 1
+        elif video_count > 0:
+            media_counts["videos"] += 1
+        else:
+            media_counts["empty"] += 1
+
+        source = item.get("source_type") or "unknown"
+        source_counts[source] = source_counts.get(source, 0) + 1
+
+    return {
+        "total_items": len(items),
+        "status_counts": status_counts,
+        "media_counts": media_counts,
+        "source_counts": source_counts,
+    }
+
+
 def dedupe_urls(urls):
     seen: set[str] = set()
     ordered: list[str] = []
@@ -242,6 +274,7 @@ def get_history_view(
     page = min(max(1, page), total_pages)
     start = (page - 1) * per_page
     paged_items = items[start : start + per_page]
+    summary = summarize_history_rows(rows, grouped=grouped)
     return {
         "items": paged_items,
         "pagination": {
@@ -258,6 +291,7 @@ def get_history_view(
             "grouped": grouped,
             "media": media,
         },
+        "summary": summary,
     }
 
 

@@ -322,6 +322,52 @@ def test_history_media_filter():
         assert [item["page_title"] for item in both["items"]] == ["Both"]
 
 
+def test_history_summary_counts():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = str(Path(tmpdir) / "summary.db")
+        ensure_database(db_path)
+        save_scan(
+            db_path,
+            {
+                "page_title": "Summary Stream",
+                "page_url": "https://example.com/summary-stream",
+                "m3u8_url": "https://cdn.example.com/summary.m3u8",
+                "mp4_url": None,
+                "status": "success",
+                "error_message": None,
+                "scanned_at": "2026-07-02T18:00:00+02:00",
+                "source_trace": json.dumps([{"stage": "direct_m3u8"}]),
+                "source_type": "direct",
+            },
+        )
+        save_scan(
+            db_path,
+            {
+                "page_title": "Summary Video",
+                "page_url": "https://example.com/summary-video",
+                "m3u8_url": None,
+                "mp4_url": "https://cdn.example.com/summary.mp4",
+                "status": "no_stream_found",
+                "error_message": None,
+                "scanned_at": "2026-07-02T19:00:00+02:00",
+                "source_trace": json.dumps([{"stage": "direct_mp4"}]),
+                "source_type": "direct",
+            },
+        )
+        app = create_app({"TESTING": True, "DATABASE_PATH": db_path})
+        client = app.test_client()
+
+        response = client.get("/api/history?grouped=1")
+        payload = response.get_json()
+
+        assert response.status_code == 200
+        assert payload["summary"]["total_items"] == 2
+        assert payload["summary"]["status_counts"]["success"] == 1
+        assert payload["summary"]["status_counts"]["no_stream_found"] == 1
+        assert payload["summary"]["media_counts"]["streams"] == 1
+        assert payload["summary"]["media_counts"]["videos"] == 1
+
+
 def test_markdown_report_export():
     with tempfile.TemporaryDirectory() as tmpdir:
         db_path = str(Path(tmpdir) / "report.db")

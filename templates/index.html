@@ -45,6 +45,39 @@
   </div>
 </section>
 
+<section class="panel dashboard-panel">
+  <div class="section-top">
+    <div>
+      <h2>Tableau de bord</h2>
+      <p class="section-subtitle">Répartition de l’historique filtré en temps réel.</p>
+    </div>
+    <span class="muted" id="dashboard-total">{{ history_view.summary.total_items }} analyses filtrées</span>
+  </div>
+  <div class="dashboard-grid">
+    <article class="dashboard-card">
+      <div class="dashboard-card-head">
+        <h3>Statuts</h3>
+        <span class="muted" id="dashboard-status-total">{{ history_view.summary.total_items }} entrées</span>
+      </div>
+      <div id="dashboard-status-chart" class="chart-list"></div>
+    </article>
+    <article class="dashboard-card">
+      <div class="dashboard-card-head">
+        <h3>Médias</h3>
+        <span class="muted" id="dashboard-media-total">{{ history_view.summary.total_items }} entrées</span>
+      </div>
+      <div id="dashboard-media-chart" class="chart-list"></div>
+    </article>
+    <article class="dashboard-card">
+      <div class="dashboard-card-head">
+        <h3>Sources</h3>
+        <span class="muted" id="dashboard-source-total">{{ history_view.summary.total_items }} entrées</span>
+      </div>
+      <div id="dashboard-source-chart" class="chart-list"></div>
+    </article>
+  </div>
+</section>
+
 <section class="panel composer">
   <form id="analyze-form" class="analysis-form">
     <div class="composer-header">
