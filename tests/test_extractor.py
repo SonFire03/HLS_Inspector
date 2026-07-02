@@ -263,3 +263,59 @@ def test_grouped_history_includes_videos():
         item = history_view["items"][0]
         assert item["videos"] == ["https://cdn.example.com/video.mp4"]
         assert item["video_count"] == 1
+
+
+def test_history_media_filter():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = str(Path(tmpdir) / "filter.db")
+        ensure_database(db_path)
+        save_scan(
+            db_path,
+            {
+                "page_title": "Streams Only",
+                "page_url": "https://example.com/streams",
+                "m3u8_url": "https://cdn.example.com/only.m3u8",
+                "mp4_url": None,
+                "status": "success",
+                "error_message": None,
+                "scanned_at": "2026-07-02T14:00:00+02:00",
+                "source_trace": json.dumps([{"stage": "direct_m3u8"}]),
+                "source_type": "direct",
+            },
+        )
+        save_scan(
+            db_path,
+            {
+                "page_title": "Videos Only",
+                "page_url": "https://example.com/videos",
+                "m3u8_url": None,
+                "mp4_url": "https://cdn.example.com/only.mp4",
+                "status": "success",
+                "error_message": None,
+                "scanned_at": "2026-07-02T15:00:00+02:00",
+                "source_trace": json.dumps([{"stage": "direct_mp4"}]),
+                "source_type": "direct",
+            },
+        )
+        save_scan(
+            db_path,
+            {
+                "page_title": "Both",
+                "page_url": "https://example.com/both",
+                "m3u8_url": "https://cdn.example.com/both.m3u8",
+                "mp4_url": "https://cdn.example.com/both.mp4",
+                "status": "success",
+                "error_message": None,
+                "scanned_at": "2026-07-02T16:00:00+02:00",
+                "source_trace": json.dumps([{"stage": "direct_m3u8"}, {"stage": "direct_mp4"}]),
+                "source_type": "direct",
+            },
+        )
+
+        streams_only = get_history_view(db_path, page=1, per_page=10, grouped=True, media="streams")
+        videos_only = get_history_view(db_path, page=1, per_page=10, grouped=True, media="videos")
+        both = get_history_view(db_path, page=1, per_page=10, grouped=True, media="both")
+
+        assert [item["page_title"] for item in streams_only["items"]] == ["Streams Only"]
+        assert [item["page_title"] for item in videos_only["items"]] == ["Videos Only"]
+        assert [item["page_title"] for item in both["items"]] == ["Both"]

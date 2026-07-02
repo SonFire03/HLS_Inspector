@@ -214,9 +214,29 @@ def get_history_view(
     grouped: bool = True,
     status: str = "all",
     search: str = "",
+    media: str = "all",
 ) -> dict:
     rows = fetch_history_rows(db_path, limit=None, status=status, search=search or None)
     items = group_history_rows(rows) if grouped else rows
+    if media != "all":
+        if grouped:
+            if media == "streams":
+                items = [item for item in items if item.get("stream_count", 0) > 0 and item.get("video_count", 0) == 0]
+            elif media == "videos":
+                items = [item for item in items if item.get("video_count", 0) > 0 and item.get("stream_count", 0) == 0]
+            elif media == "both":
+                items = [item for item in items if item.get("stream_count", 0) > 0 and item.get("video_count", 0) > 0]
+            elif media == "empty":
+                items = [item for item in items if item.get("stream_count", 0) == 0 and item.get("video_count", 0) == 0]
+        else:
+            if media == "streams":
+                items = [item for item in items if item.get("m3u8_url")]
+            elif media == "videos":
+                items = [item for item in items if item.get("mp4_url")]
+            elif media == "both":
+                items = [item for item in items if item.get("m3u8_url") and item.get("mp4_url")]
+            elif media == "empty":
+                items = [item for item in items if not item.get("m3u8_url") and not item.get("mp4_url")]
     total_items = len(items)
     total_pages = max(1, (total_items + per_page - 1) // per_page)
     page = min(max(1, page), total_pages)
@@ -236,6 +256,7 @@ def get_history_view(
             "status": status,
             "search": search,
             "grouped": grouped,
+            "media": media,
         },
     }
 

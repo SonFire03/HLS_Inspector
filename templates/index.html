@@ -91,6 +91,14 @@
       <option value="error" {% if history_view.filters.status == "error" %}selected{% endif %}>error</option>
       <option value="invalid_url" {% if history_view.filters.status == "invalid_url" %}selected{% endif %}>invalid_url</option>
     </select>
+    <label class="sr-only" for="history-media">Média</label>
+    <select id="history-media">
+      <option value="all" {% if history_view.filters.media == "all" %}selected{% endif %}>Tous les médias</option>
+      <option value="streams" {% if history_view.filters.media == "streams" %}selected{% endif %}>Flux .m3u8</option>
+      <option value="videos" {% if history_view.filters.media == "videos" %}selected{% endif %}>Vidéos .mp4</option>
+      <option value="both" {% if history_view.filters.media == "both" %}selected{% endif %}>Flux + vidéos</option>
+      <option value="empty" {% if history_view.filters.media == "empty" %}selected{% endif %}>Aucun média</option>
+    </select>
     <label class="sr-only" for="history-per-page">Par page</label>
     <select id="history-per-page">
       <option value="5" {% if history_view.pagination.per_page == 5 %}selected{% endif %}>5</option>

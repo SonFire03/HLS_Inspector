@@ -16,6 +16,7 @@ const detailsSourceType = document.getElementById("details-source-type");
 const detailsVideos = document.getElementById("details-videos");
 const historySearch = document.getElementById("history-search");
 const historyStatus = document.getElementById("history-status");
+const historyMedia = document.getElementById("history-media");
 const historyPerPage = document.getElementById("history-per-page");
 const historyApply = document.getElementById("history-apply");
 const historyReset = document.getElementById("history-reset");
@@ -34,6 +35,7 @@ const historyState = {
   page: 1,
   perPage: Number(historyPerPage?.value || 10),
   status: historyStatus?.value || "all",
+  media: historyMedia?.value || "all",
   search: historySearch?.value || "",
   grouped: true,
 };
@@ -124,6 +126,7 @@ function buildHistoryQuery() {
     page: String(historyState.page),
     per_page: String(historyState.perPage),
     status: historyState.status,
+    media: historyState.media,
     search: historyState.search,
     grouped: historyState.grouped ? "1" : "0",
   });
@@ -382,6 +385,7 @@ historyApply.addEventListener("click", async () => {
   historyState.page = 1;
   historyState.search = historySearch.value.trim();
   historyState.status = historyStatus.value;
+  historyState.media = historyMedia.value;
   historyState.perPage = Number(historyPerPage.value || 10);
   await refreshHistory();
 });
@@ -389,10 +393,12 @@ historyApply.addEventListener("click", async () => {
 historyReset.addEventListener("click", async () => {
   historySearch.value = "";
   historyStatus.value = "all";
+  historyMedia.value = "all";
   historyPerPage.value = "10";
   historyState.page = 1;
   historyState.search = "";
   historyState.status = "all";
+  historyState.media = "all";
   historyState.perPage = 10;
   await refreshHistory();
 });

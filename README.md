@@ -53,6 +53,16 @@ L’application écoute par défaut sur `http://127.0.0.1:5000`.
 - `GET /export/detail/csv` : export détaillé CSV
 - `GET /export/report/html` : rapport HTML prêt à partager
 
+### Filtres d’historique
+
+L’interface et l’API d’historique acceptent aussi un filtre `media`:
+
+- `all`
+- `streams`
+- `videos`
+- `both`
+- `empty`
+
 ## Limites de la V1
 
 - Analyse HTML simple uniquement

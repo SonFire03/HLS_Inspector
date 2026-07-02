@@ -57,6 +57,7 @@ def create_app(test_config: dict | None = None) -> Flask:
             page=1,
             per_page=DEFAULT_HISTORY_PAGE_SIZE,
             grouped=True,
+            media="all",
         )
         return render_template("index.html", history_view=history_view)
 
@@ -213,6 +214,7 @@ def create_app(test_config: dict | None = None) -> Flask:
         )
         status = (request.args.get("status") or "all").strip()
         search = (request.args.get("search") or "").strip()
+        media = (request.args.get("media") or "all").strip()
         grouped = (request.args.get("grouped") or "1").strip() != "0"
         return jsonify(
             get_history_view(
@@ -222,6 +224,7 @@ def create_app(test_config: dict | None = None) -> Flask:
                 grouped=grouped,
                 status=status,
                 search=search,
+                media=media,
             )
         )
 
