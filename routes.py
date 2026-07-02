@@ -45,6 +45,10 @@ def build_report_summary(history_items: list[dict]) -> dict:
     total_items = len(history_items)
     total_streams = sum(int(item.get("stream_count", 0) or 0) for item in history_items)
     total_videos = sum(int(item.get("video_count", 0) or 0) for item in history_items)
+    total_documents = sum(int(item.get("document_count", 0) or 0) for item in history_items)
+    total_images = sum(int(item.get("image_count", 0) or 0) for item in history_items)
+    total_other = sum(int(item.get("other_asset_count", 0) or 0) for item in history_items)
+    total_assets = sum(int(item.get("asset_count", 0) or 0) for item in history_items)
     success_count = sum(1 for item in history_items if item.get("status") == "success")
     no_stream_count = sum(1 for item in history_items if item.get("status") == "no_stream_found")
     error_count = sum(1 for item in history_items if item.get("status") == "error")
@@ -54,6 +58,10 @@ def build_report_summary(history_items: list[dict]) -> dict:
         "total_items": total_items,
         "total_streams": total_streams,
         "total_videos": total_videos,
+        "total_documents": total_documents,
+        "total_images": total_images,
+        "total_other": total_other,
+        "total_assets": total_assets,
         "success_count": success_count,
         "no_stream_count": no_stream_count,
         "error_count": error_count,
@@ -73,8 +81,12 @@ def build_report_markdown(history_items: list[dict], generated_at: str) -> str:
         "",
         f"- Generated at: {generated_at}",
         f"- Analyses: {stats['total_items']}",
+        f"- Ressources: {stats['total_assets']}",
         f"- Flux .m3u8: {stats['total_streams']}",
         f"- Vidéos .mp4: {stats['total_videos']}",
+        f"- Documents: {stats['total_documents']}",
+        f"- Images: {stats['total_images']}",
+        f"- Autres: {stats['total_other']}",
         f"- Success: {stats['success_count']}",
         f"- No stream found: {stats['no_stream_count']}",
         f"- Error: {stats['error_count']}",
@@ -110,6 +122,11 @@ def build_report_markdown(history_items: list[dict], generated_at: str) -> str:
             lines.append("- Vidéos:")
             for video in item["videos"]:
                 lines.append(f"  - `{markdown_escape(video)}`")
+        extra_assets = (item.get("documents") or []) + (item.get("images") or []) + (item.get("other_assets") or [])
+        if extra_assets:
+            lines.append("- Ressources:")
+            for asset in extra_assets:
+                lines.append(f"  - `{markdown_escape(asset)}`")
         if item.get("error_message"):
             lines.append(f"- Error: {markdown_escape(item['error_message'])}")
     lines.append("")
@@ -158,6 +175,9 @@ def create_app(test_config: dict | None = None) -> Flask:
                     "page_url": url,
                     "m3u8_url": None,
                     "mp4_url": None,
+                    "asset_url": None,
+                    "asset_kind": None,
+                    "asset_category": None,
                     "status": "invalid_url",
                     "error_message": "L'URL doit commencer par http:// ou https://.",
                     "scanned_at": scanned_at,
@@ -172,6 +192,7 @@ def create_app(test_config: dict | None = None) -> Flask:
                     "page_url": url,
                     "streams": [],
                     "videos": [],
+                    "assets": [],
                     "status": "invalid_url",
                     "error_message": "L'URL doit commencer par http:// ou https://.",
                     "scanned_at": scanned_at,
@@ -192,6 +213,9 @@ def create_app(test_config: dict | None = None) -> Flask:
                     "page_url": exc.page_url or url,
                     "m3u8_url": None,
                     "mp4_url": None,
+                    "asset_url": None,
+                    "asset_kind": None,
+                    "asset_category": None,
                     "status": exc.status,
                     "error_message": str(exc),
                     "scanned_at": scanned_at,
@@ -206,6 +230,7 @@ def create_app(test_config: dict | None = None) -> Flask:
                     "page_url": exc.page_url or url,
                     "streams": [],
                     "videos": [],
+                    "assets": [],
                     "status": exc.status,
                     "error_message": str(exc),
                     "scanned_at": scanned_at,
@@ -215,16 +240,20 @@ def create_app(test_config: dict | None = None) -> Flask:
             )
 
         scanned_at = now_iso()
-        has_media = bool(result["streams"] or result.get("mp4s"))
-        if result["streams"]:
-            for stream_url in result["streams"]:
+        assets = result.get("assets", [])
+        has_assets = bool(assets)
+        if assets:
+            for asset in assets:
                 save_scan(
                     app.config["DATABASE_PATH"],
                     {
                         "page_title": result["title"],
                         "page_url": result["page_url"],
-                        "m3u8_url": stream_url,
-                        "mp4_url": None,
+                        "m3u8_url": asset["url"] if asset["kind"] == "m3u8" else None,
+                        "mp4_url": asset["url"] if asset["kind"] == "mp4" else None,
+                        "asset_url": asset["url"],
+                        "asset_kind": asset["kind"],
+                        "asset_category": asset["category"],
                         "status": "success",
                         "error_message": None,
                         "scanned_at": scanned_at,
@@ -232,23 +261,7 @@ def create_app(test_config: dict | None = None) -> Flask:
                         "source_type": result["source_type"],
                     },
                 )
-        if result.get("mp4s"):
-            for video_url in result["mp4s"]:
-                save_scan(
-                    app.config["DATABASE_PATH"],
-                    {
-                        "page_title": result["title"],
-                        "page_url": result["page_url"],
-                        "m3u8_url": None,
-                        "mp4_url": video_url,
-                        "status": "success",
-                        "error_message": None,
-                        "scanned_at": scanned_at,
-                        "source_trace": json.dumps(result["trace"], ensure_ascii=False),
-                        "source_type": result["source_type"],
-                    },
-                )
-        if not has_media:
+        if not has_assets:
             save_scan(
                 app.config["DATABASE_PATH"],
                 {
@@ -256,6 +269,9 @@ def create_app(test_config: dict | None = None) -> Flask:
                     "page_url": result["page_url"],
                     "m3u8_url": None,
                     "mp4_url": None,
+                    "asset_url": None,
+                    "asset_kind": None,
+                    "asset_category": None,
                     "status": "no_stream_found",
                     "error_message": None,
                     "scanned_at": scanned_at,
@@ -266,12 +282,13 @@ def create_app(test_config: dict | None = None) -> Flask:
 
         return jsonify(
             {
-                "success": has_media,
+                "success": has_assets,
                 "title": result["title"],
                 "page_url": result["page_url"],
                 "streams": result["streams"],
-                "videos": result.get("mp4s", []),
-                "status": "success" if has_media else "no_stream_found",
+                "videos": result.get("videos", []),
+                "assets": assets,
+                "status": "success" if has_assets else "no_stream_found",
                 "scanned_at": scanned_at,
                 "trace": result["trace"],
                 "source_type": result["source_type"],
@@ -324,7 +341,7 @@ def create_app(test_config: dict | None = None) -> Flask:
         rows = fetch_history_rows(app.config["DATABASE_PATH"], limit=None)
         buffer = io.StringIO()
         writer = csv.writer(buffer)
-        writer.writerow(["id", "page_title", "page_url", "m3u8_url", "mp4_url", "status", "error_message", "scanned_at", "source_trace"])
+        writer.writerow(["id", "page_title", "page_url", "m3u8_url", "mp4_url", "asset_url", "asset_kind", "asset_category", "status", "error_message", "scanned_at", "source_trace"])
         for row in rows:
             writer.writerow([
                 row["id"],
@@ -332,6 +349,9 @@ def create_app(test_config: dict | None = None) -> Flask:
                 row["page_url"],
                 row["m3u8_url"],
                 row["mp4_url"],
+                row["asset_url"],
+                row["asset_kind"],
+                row["asset_category"],
                 row["status"],
                 row["error_message"],
                 row["scanned_at"],
@@ -365,7 +385,7 @@ def create_app(test_config: dict | None = None) -> Flask:
         history_items = group_history_rows(rows)
         buffer = io.StringIO()
         writer = csv.writer(buffer)
-        writer.writerow(["analysis_id", "page_title", "page_url", "status", "source_type", "streams", "stream_count", "videos", "video_count", "error_message", "scanned_at", "source_trace"])
+        writer.writerow(["analysis_id", "page_title", "page_url", "status", "source_type", "streams", "stream_count", "videos", "video_count", "documents", "document_count", "images", "image_count", "other_assets", "other_asset_count", "error_message", "scanned_at", "source_trace"])
         for item in history_items:
             writer.writerow([
                 item["id"],
@@ -377,6 +397,12 @@ def create_app(test_config: dict | None = None) -> Flask:
                 item["stream_count"],
                 json.dumps(item["videos"], ensure_ascii=False),
                 item["video_count"],
+                json.dumps(item["documents"], ensure_ascii=False),
+                item["document_count"],
+                json.dumps(item["images"], ensure_ascii=False),
+                item["image_count"],
+                json.dumps(item["other_assets"], ensure_ascii=False),
+                item["other_asset_count"],
                 item["error_message"],
                 item["scanned_at"],
                 item["source_trace"],

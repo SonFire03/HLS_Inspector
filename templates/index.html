@@ -5,7 +5,7 @@
   <div class="hero-copy">
     <p class="eyebrow">Analyse locale autorisée</p>
     <h1>HLS Inspector</h1>
-    <p class="lead">Colle une URL ou dépose un fichier texte pour inventorier les liens `.m3u8` présents dans le HTML, les iframes et les ressources déclarées.</p>
+    <p class="lead">Colle une URL ou dépose un fichier texte pour inventorier les ressources détectables dans le HTML, les iframes et les ressources déclarées.</p>
     <div class="hero-pills">
       <span class="hero-pill">HTTP/HTTPS only</span>
       <span class="hero-pill">Pas de téléchargement</span>
@@ -63,7 +63,7 @@
     </article>
     <article class="dashboard-card">
       <div class="dashboard-card-head">
-        <h3>Médias</h3>
+        <h3>Types</h3>
         <span class="muted" id="dashboard-media-total">{{ history_view.summary.total_items }} entrées</span>
       </div>
       <div id="dashboard-media-chart" class="chart-list"></div>
@@ -127,11 +127,13 @@
     </select>
     <label class="sr-only" for="history-media">Média</label>
     <select id="history-media">
-      <option value="all" {% if history_view.filters.media == "all" %}selected{% endif %}>Tous les médias</option>
+      <option value="all" {% if history_view.filters.media == "all" %}selected{% endif %}>Tous les types</option>
       <option value="streams" {% if history_view.filters.media == "streams" %}selected{% endif %}>Flux .m3u8</option>
       <option value="videos" {% if history_view.filters.media == "videos" %}selected{% endif %}>Vidéos .mp4</option>
-      <option value="both" {% if history_view.filters.media == "both" %}selected{% endif %}>Flux + vidéos</option>
-      <option value="empty" {% if history_view.filters.media == "empty" %}selected{% endif %}>Aucun média</option>
+      <option value="documents" {% if history_view.filters.media == "documents" %}selected{% endif %}>Documents</option>
+      <option value="images" {% if history_view.filters.media == "images" %}selected{% endif %}>Images</option>
+      <option value="other" {% if history_view.filters.media == "other" %}selected{% endif %}>Autres ressources</option>
+      <option value="empty" {% if history_view.filters.media == "empty" %}selected{% endif %}>Aucune ressource</option>
     </select>
     <label class="sr-only" for="history-per-page">Par page</label>
     <select id="history-per-page">
@@ -154,6 +156,7 @@
           <th>URL de page</th>
           <th>Flux .m3u8</th>
           <th>Vidéos .mp4</th>
+          <th>Ressources</th>
           <th>Source</th>
           <th>Date</th>
           <th>Statut</th>
@@ -192,6 +195,21 @@
               </div>
             {% else %}
               <span class="muted">Aucun</span>
+            {% endif %}
+          </td>
+          <td>
+            {% set extra_assets = (item.documents or []) + (item.images or []) + (item.other_assets or []) %}
+            {% if extra_assets %}
+              <div class="stream-cell">
+                {% for asset in extra_assets %}
+                  <div class="stream-pill">
+                    <code>{{ asset }}</code>
+                    <button class="copy-button" type="button" data-copy="{{ asset }}">Copier</button>
+                  </div>
+                {% endfor %}
+              </div>
+            {% else %}
+              <span class="muted">Aucune</span>
             {% endif %}
           </td>
           <td><span class="badge badge-source source-{{ item.source_type }}">{{ item.source_label }}</span></td>
@@ -244,6 +262,10 @@
       <div class="details-card">
         <h3>Vidéos détectées</h3>
         <div id="details-videos" class="details-streams muted">Aucune</div>
+      </div>
+      <div class="details-card">
+        <h3>Autres ressources</h3>
+        <div id="details-assets" class="details-streams muted">Aucune</div>
       </div>
       <div class="details-card details-trace-card">
         <h3>Trace</h3>

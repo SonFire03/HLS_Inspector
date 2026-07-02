@@ -2,7 +2,7 @@
 
 Version initiale: `v1.0.0`
 
-Application locale d’inventaire et d’analyse technique de pages vidéo autorisées contenant des flux HLS et, quand ils sont exposés dans le HTML ou les ressources liées, des liens `.mp4`.
+Application locale d’inventaire et d’analyse technique de pages autorisées. Elle détecte des ressources exposées dans le HTML ou les ressources liées, notamment des flux HLS, des vidéos et des documents/images courants.
 
 ## Avertissement légal
 
@@ -12,7 +12,7 @@ Il n’intègre aucun mécanisme de téléchargement, de contournement de sécur
 
 ## Description courte
 
-HLS Inspector est un outil local d’inventaire technique pour pages vidéo autorisées. Il analyse le HTML et les ressources liées pour extraire les liens `.m3u8` et `.mp4` détectables sans exécuter de JavaScript distant.
+HLS Inspector est un outil local d’inventaire technique pour pages autorisées. Il analyse le HTML et les ressources liées pour extraire les liens `.m3u8`, `.mp4`, `.pdf`, `.docx`, `.xlsx`, `.png`, `.jpg` et autres extensions courantes détectables sans exécuter de JavaScript distant.
 
 ## Installation
 
@@ -36,7 +36,7 @@ L’application écoute par défaut sur `http://127.0.0.1:5000`.
 2. Coller une URL HTTP ou HTTPS autorisée
 3. Ou déposer un texte / fichier `.txt` contenant une ou plusieurs URLs
 4. Cliquer sur `Analyser`
-5. Consulter le titre, l’URL de page, les liens `.m3u8`, les liens `.mp4`, la date et le statut
+5. Consulter le titre, l’URL de page, les ressources détectées, la date et le statut
 6. Exporter l’historique en JSON ou CSV si nécessaire
 
 ## Routes disponibles
@@ -61,7 +61,9 @@ L’interface et l’API d’historique acceptent aussi un filtre `media`:
 - `all`
 - `streams`
 - `videos`
-- `both`
+- `documents`
+- `images`
+- `other`
 - `empty`
 
 ## Limites de la V1
@@ -69,7 +71,7 @@ L’interface et l’API d’historique acceptent aussi un filtre `media`:
 - Analyse HTML simple uniquement
 - Pas de JavaScript distant exécuté
 - Pas de Playwright, Selenium ou interception réseau
-- Pas de téléchargement de segments `.ts`, `.m4s` ou `.mp4`
+- Pas de téléchargement de segments `.ts`, `.m4s`, `.mp4`, `.pdf` ou images
 - Pas de contournement DRM, login, token, cookie ou paywall
 - Taille de réponse HTML limitée à environ 5 Mo
 

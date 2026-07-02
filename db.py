@@ -6,6 +6,23 @@ from pathlib import Path
 
 
 ALLOWED_SCAN_STATUSES = {"success", "no_stream_found", "error", "invalid_url"}
+ASSET_KIND_TO_CATEGORY = {
+    "m3u8": "stream",
+    "mp4": "video",
+    "pdf": "document",
+    "doc": "document",
+    "docx": "document",
+    "xls": "document",
+    "xlsx": "document",
+    "csv": "document",
+    "txt": "document",
+    "png": "image",
+    "jpg": "image",
+    "jpeg": "image",
+    "gif": "image",
+    "webp": "image",
+    "svg": "image",
+}
 
 
 def ensure_database(db_path: str) -> None:
@@ -19,6 +36,9 @@ def ensure_database(db_path: str) -> None:
                 page_url TEXT NOT NULL,
                 m3u8_url TEXT,
                 mp4_url TEXT,
+                asset_url TEXT,
+                asset_kind TEXT,
+                asset_category TEXT,
                 status TEXT NOT NULL,
                 error_message TEXT,
                 source_trace TEXT,
@@ -34,6 +54,12 @@ def ensure_database(db_path: str) -> None:
             conn.execute("ALTER TABLE scans ADD COLUMN source_type TEXT")
         if "mp4_url" not in existing_columns:
             conn.execute("ALTER TABLE scans ADD COLUMN mp4_url TEXT")
+        if "asset_url" not in existing_columns:
+            conn.execute("ALTER TABLE scans ADD COLUMN asset_url TEXT")
+        if "asset_kind" not in existing_columns:
+            conn.execute("ALTER TABLE scans ADD COLUMN asset_kind TEXT")
+        if "asset_category" not in existing_columns:
+            conn.execute("ALTER TABLE scans ADD COLUMN asset_category TEXT")
         conn.commit()
 
 
@@ -49,14 +75,17 @@ def save_scan(db_path: str, scan: dict) -> None:
     with get_connection(db_path) as conn:
         conn.execute(
             """
-            INSERT INTO scans (page_title, page_url, m3u8_url, mp4_url, status, error_message, source_trace, source_type, scanned_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO scans (page_title, page_url, m3u8_url, mp4_url, asset_url, asset_kind, asset_category, status, error_message, source_trace, source_type, scanned_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 scan.get("page_title"),
                 scan.get("page_url"),
                 scan.get("m3u8_url"),
                 scan.get("mp4_url"),
+                scan.get("asset_url"),
+                scan.get("asset_kind"),
+                scan.get("asset_category"),
                 scan.get("status"),
                 scan.get("error_message"),
                 scan.get("source_trace"),
@@ -76,7 +105,7 @@ def fetch_history_rows(
     search: str | None = None,
 ) -> list[dict]:
     query = (
-        "SELECT id, page_title, page_url, m3u8_url, mp4_url, status, error_message, source_trace, source_type, scanned_at "
+        "SELECT id, page_title, page_url, m3u8_url, mp4_url, asset_url, asset_kind, asset_category, status, error_message, source_trace, source_type, scanned_at "
         "FROM scans"
     )
     where: list[str] = []
@@ -90,10 +119,10 @@ def fetch_history_rows(
         like = f"%{search}%"
         where.append(
             "("
-            "page_title LIKE ? OR page_url LIKE ? OR m3u8_url LIKE ? OR mp4_url LIKE ? OR status LIKE ? OR error_message LIKE ? OR source_trace LIKE ?"
+            "page_title LIKE ? OR page_url LIKE ? OR m3u8_url LIKE ? OR mp4_url LIKE ? OR asset_url LIKE ? OR asset_kind LIKE ? OR asset_category LIKE ? OR status LIKE ? OR error_message LIKE ? OR source_trace LIKE ?"
             ")"
         )
-        params.extend([like, like, like, like, like, like, like])
+        params.extend([like, like, like, like, like, like, like, like, like, like])
 
     if where:
         query += " WHERE " + " AND ".join(where)
@@ -162,16 +191,34 @@ def group_history_rows(rows: list[dict]) -> list[dict]:
                 "source_type": row.get("source_type") or "unknown",
                 "streams": [],
                 "videos": [],
+                "documents": [],
+                "images": [],
+                "other_assets": [],
+                "assets": [],
                 "entries": [],
             }
             buckets[key] = group
             grouped.append(group)
+
+        asset_url = row.get("asset_url") or row.get("m3u8_url") or row.get("mp4_url")
+        asset_kind = row.get("asset_kind")
+        asset_category = row.get("asset_category")
+        if asset_url and not asset_kind:
+            if row.get("m3u8_url"):
+                asset_kind = "m3u8"
+            elif row.get("mp4_url"):
+                asset_kind = "mp4"
+        if asset_url and not asset_category:
+            asset_category = asset_category_for_kind(asset_kind)
 
         group["entries"].append(
             {
                 "id": row["id"],
                 "m3u8_url": row["m3u8_url"],
                 "mp4_url": row.get("mp4_url"),
+                "asset_url": row.get("asset_url"),
+                "asset_kind": row.get("asset_kind"),
+                "asset_category": row.get("asset_category"),
                 "status": row["status"],
                 "source_type": row.get("source_type") or infer_source_type(row.get("source_trace")),
             }
@@ -180,6 +227,19 @@ def group_history_rows(rows: list[dict]) -> list[dict]:
             group["streams"].append(row["m3u8_url"])
         if row.get("mp4_url"):
             group["videos"].append(row["mp4_url"])
+        if asset_url:
+            asset_record = {
+                "url": asset_url,
+                "kind": asset_kind or "other",
+                "category": asset_category or asset_category_for_kind(asset_kind),
+            }
+            group["assets"].append(asset_record)
+            if asset_record["category"] == "document" and asset_record["kind"] not in {"m3u8", "mp4"}:
+                group["documents"].append(asset_record["url"])
+            elif asset_record["category"] == "image" and asset_record["kind"] not in {"m3u8", "mp4"}:
+                group["images"].append(asset_record["url"])
+            elif asset_record["kind"] not in {"m3u8", "mp4"}:
+                group["other_assets"].append(asset_record["url"])
         if not group.get("source_trace") and row.get("source_trace"):
             group["source_trace"] = row["source_trace"]
         if group.get("source_type") in {None, "unknown"}:
@@ -188,8 +248,16 @@ def group_history_rows(rows: list[dict]) -> list[dict]:
     for group in grouped:
         group["streams"] = dedupe_urls(group["streams"])
         group["videos"] = dedupe_urls(group["videos"])
+        group["documents"] = dedupe_urls(group["documents"])
+        group["images"] = dedupe_urls(group["images"])
+        group["other_assets"] = dedupe_urls(group["other_assets"])
+        group["assets"] = dedupe_asset_records(group["assets"])
         group["stream_count"] = len(group["streams"])
         group["video_count"] = len(group["videos"])
+        group["document_count"] = len(group["documents"])
+        group["image_count"] = len(group["images"])
+        group["other_asset_count"] = len(group["other_assets"])
+        group["asset_count"] = len(group["assets"])
         group["source_type"] = group.get("source_type") or infer_source_type(group.get("source_trace"))
         group["source_label"] = source_type_label(group["source_type"])
 
@@ -199,23 +267,18 @@ def group_history_rows(rows: list[dict]) -> list[dict]:
 def summarize_history_rows(rows: list[dict], grouped: bool = True) -> dict:
     items = group_history_rows(rows) if grouped else rows
     status_counts: dict[str, int] = {}
-    media_counts = {"streams": 0, "videos": 0, "both": 0, "empty": 0}
+    asset_counts = {"stream": 0, "video": 0, "document": 0, "image": 0, "other": 0}
     source_counts: dict[str, int] = {}
 
     for item in items:
         status = item.get("status") or "unknown"
         status_counts[status] = status_counts.get(status, 0) + 1
 
-        stream_count = int(item.get("stream_count", 0) or 0)
-        video_count = int(item.get("video_count", 0) or 0)
-        if stream_count > 0 and video_count > 0:
-            media_counts["both"] += 1
-        elif stream_count > 0:
-            media_counts["streams"] += 1
-        elif video_count > 0:
-            media_counts["videos"] += 1
-        else:
-            media_counts["empty"] += 1
+        asset_counts["stream"] += int(item.get("stream_count", 0) or 0)
+        asset_counts["video"] += int(item.get("video_count", 0) or 0)
+        asset_counts["document"] += int(item.get("document_count", 0) or 0)
+        asset_counts["image"] += int(item.get("image_count", 0) or 0)
+        asset_counts["other"] += int(item.get("other_asset_count", 0) or 0)
 
         source = item.get("source_type") or "unknown"
         source_counts[source] = source_counts.get(source, 0) + 1
@@ -223,7 +286,7 @@ def summarize_history_rows(rows: list[dict], grouped: bool = True) -> dict:
     return {
         "total_items": len(items),
         "status_counts": status_counts,
-        "media_counts": media_counts,
+        "asset_counts": asset_counts,
         "source_counts": source_counts,
     }
 
@@ -236,6 +299,23 @@ def dedupe_urls(urls):
             seen.add(url)
             ordered.append(url)
     return ordered
+
+
+def dedupe_asset_records(assets: list[dict]) -> list[dict]:
+    seen: set[str] = set()
+    ordered: list[dict] = []
+    for asset in assets:
+        url = asset.get("url")
+        if url and url not in seen:
+            seen.add(url)
+            ordered.append(asset)
+    return ordered
+
+
+def asset_category_for_kind(kind: str | None) -> str:
+    if not kind:
+        return "other"
+    return ASSET_KIND_TO_CATEGORY.get(kind, "other")
 
 
 def get_history_view(
@@ -253,22 +333,30 @@ def get_history_view(
     if media != "all":
         if grouped:
             if media == "streams":
-                items = [item for item in items if item.get("stream_count", 0) > 0 and item.get("video_count", 0) == 0]
+                items = [item for item in items if item.get("stream_count", 0) > 0]
             elif media == "videos":
-                items = [item for item in items if item.get("video_count", 0) > 0 and item.get("stream_count", 0) == 0]
-            elif media == "both":
-                items = [item for item in items if item.get("stream_count", 0) > 0 and item.get("video_count", 0) > 0]
+                items = [item for item in items if item.get("video_count", 0) > 0]
+            elif media == "documents":
+                items = [item for item in items if item.get("document_count", 0) > 0]
+            elif media == "images":
+                items = [item for item in items if item.get("image_count", 0) > 0]
+            elif media == "other":
+                items = [item for item in items if item.get("other_asset_count", 0) > 0]
             elif media == "empty":
-                items = [item for item in items if item.get("stream_count", 0) == 0 and item.get("video_count", 0) == 0]
+                items = [item for item in items if item.get("asset_count", 0) == 0]
         else:
             if media == "streams":
                 items = [item for item in items if item.get("m3u8_url")]
             elif media == "videos":
                 items = [item for item in items if item.get("mp4_url")]
-            elif media == "both":
-                items = [item for item in items if item.get("m3u8_url") and item.get("mp4_url")]
+            elif media == "documents":
+                items = [item for item in items if item.get("asset_category") == "document"]
+            elif media == "images":
+                items = [item for item in items if item.get("asset_category") == "image"]
+            elif media == "other":
+                items = [item for item in items if item.get("asset_category") == "other"]
             elif media == "empty":
-                items = [item for item in items if not item.get("m3u8_url") and not item.get("mp4_url")]
+                items = [item for item in items if not item.get("asset_url") and not item.get("m3u8_url") and not item.get("mp4_url")]
     total_items = len(items)
     total_pages = max(1, (total_items + per_page - 1) // per_page)
     page = min(max(1, page), total_pages)

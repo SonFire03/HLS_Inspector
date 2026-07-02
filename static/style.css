@@ -188,16 +188,20 @@ h1 {
   background: linear-gradient(90deg, #f87171 0%, #dc2626 100%);
 }
 
-.chart-fill.media-streams,
-.chart-fill.media-videos {
+.chart-fill.type-stream,
+.chart-fill.type-video {
   background: linear-gradient(90deg, #60a5fa 0%, #2563eb 100%);
 }
 
-.chart-fill.media-both {
-  background: linear-gradient(90deg, #a78bfa 0%, #7c3aed 100%);
+.chart-fill.type-document {
+  background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%);
 }
 
-.chart-fill.media-empty {
+.chart-fill.type-image {
+  background: linear-gradient(90deg, #34d399 0%, #059669 100%);
+}
+
+.chart-fill.type-other {
   background: linear-gradient(90deg, #64748b 0%, #334155 100%);
 }
 

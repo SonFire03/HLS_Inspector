@@ -10,6 +10,7 @@ from app import (
     dedupe_urls,
     create_app,
     ensure_database,
+    extract_assets,
     extract_m3u8_urls,
     extract_mp4_urls,
     get_analysis_group,
@@ -129,6 +130,26 @@ def test_no_mp4_found():
     assert extract_mp4_urls(html, "https://example.com") == []
 
 
+def test_extract_generic_assets():
+    html = """
+    <div>
+      <a href="https://example.com/files/manual.pdf">PDF</a>
+      <img src="/images/poster.png">
+      <script>const docUrl = '/docs/report.docx';</script>
+    </div>
+    """
+    assets = extract_assets(html, "https://example.com/page")
+    kinds = [asset["kind"] for asset in assets]
+    urls = [asset["url"] for asset in assets]
+
+    assert "pdf" in kinds
+    assert "png" in kinds
+    assert "docx" in kinds
+    assert "https://example.com/files/manual.pdf" in urls
+    assert "https://example.com/images/poster.png" in urls
+    assert "https://example.com/docs/report.docx" in urls
+
+
 def test_invalid_url_validation():
     assert is_valid_http_url("ftp://example.com/video") is False
     assert is_valid_http_url("example.com/video") is False
@@ -142,9 +163,9 @@ def test_follow_iframe_to_find_stream():
             "https://player.example.com/embed/123": '<script>const src="https://cdn.example.com/live/master.m3u8";</script>'
         }
     )
-    streams, videos, trace = crawl_related_sources(session, html, "https://example.com/page", {"User-Agent": "test"})
-    assert streams == ["https://cdn.example.com/live/master.m3u8"]
-    assert videos == []
+    assets, trace = crawl_related_sources(session, html, "https://example.com/page", {"User-Agent": "test"})
+    assert [asset["url"] for asset in assets] == ["https://cdn.example.com/live/master.m3u8"]
+    assert [asset["kind"] for asset in assets] == ["m3u8"]
     assert any(step["stage"] == "resource_fetched" for step in trace)
 
 
@@ -155,9 +176,9 @@ def test_follow_resource_to_find_mp4():
             "https://player.example.com/embed/456": '<script>const src="/media/trailer.mp4";</script>'
         }
     )
-    streams, videos, trace = crawl_related_sources(session, html, "https://example.com/page", {"User-Agent": "test"})
-    assert streams == []
-    assert videos == ["https://player.example.com/media/trailer.mp4"]
+    assets, trace = crawl_related_sources(session, html, "https://example.com/page", {"User-Agent": "test"})
+    assert [asset["url"] for asset in assets] == ["https://player.example.com/media/trailer.mp4"]
+    assert [asset["kind"] for asset in assets] == ["mp4"]
     assert any(step["stage"] == "resource_fetched" for step in trace)
 
 
@@ -277,6 +298,9 @@ def test_history_media_filter():
                 "page_url": "https://example.com/streams",
                 "m3u8_url": "https://cdn.example.com/only.m3u8",
                 "mp4_url": None,
+                "asset_url": "https://cdn.example.com/only.m3u8",
+                "asset_kind": "m3u8",
+                "asset_category": "stream",
                 "status": "success",
                 "error_message": None,
                 "scanned_at": "2026-07-02T14:00:00+02:00",
@@ -287,39 +311,45 @@ def test_history_media_filter():
         save_scan(
             db_path,
             {
-                "page_title": "Videos Only",
-                "page_url": "https://example.com/videos",
+                "page_title": "Documents",
+                "page_url": "https://example.com/docs",
                 "m3u8_url": None,
-                "mp4_url": "https://cdn.example.com/only.mp4",
+                "mp4_url": None,
+                "asset_url": "https://cdn.example.com/file.pdf",
+                "asset_kind": "pdf",
+                "asset_category": "document",
                 "status": "success",
                 "error_message": None,
                 "scanned_at": "2026-07-02T15:00:00+02:00",
-                "source_trace": json.dumps([{"stage": "direct_mp4"}]),
+                "source_trace": json.dumps([{"stage": "direct_asset"}]),
                 "source_type": "direct",
             },
         )
         save_scan(
             db_path,
             {
-                "page_title": "Both",
-                "page_url": "https://example.com/both",
-                "m3u8_url": "https://cdn.example.com/both.m3u8",
-                "mp4_url": "https://cdn.example.com/both.mp4",
+                "page_title": "Images",
+                "page_url": "https://example.com/images",
+                "m3u8_url": None,
+                "mp4_url": None,
+                "asset_url": "https://cdn.example.com/image.png",
+                "asset_kind": "png",
+                "asset_category": "image",
                 "status": "success",
                 "error_message": None,
                 "scanned_at": "2026-07-02T16:00:00+02:00",
-                "source_trace": json.dumps([{"stage": "direct_m3u8"}, {"stage": "direct_mp4"}]),
+                "source_trace": json.dumps([{"stage": "direct_asset"}]),
                 "source_type": "direct",
             },
         )
 
         streams_only = get_history_view(db_path, page=1, per_page=10, grouped=True, media="streams")
-        videos_only = get_history_view(db_path, page=1, per_page=10, grouped=True, media="videos")
-        both = get_history_view(db_path, page=1, per_page=10, grouped=True, media="both")
+        documents_only = get_history_view(db_path, page=1, per_page=10, grouped=True, media="documents")
+        images_only = get_history_view(db_path, page=1, per_page=10, grouped=True, media="images")
 
         assert [item["page_title"] for item in streams_only["items"]] == ["Streams Only"]
-        assert [item["page_title"] for item in videos_only["items"]] == ["Videos Only"]
-        assert [item["page_title"] for item in both["items"]] == ["Both"]
+        assert [item["page_title"] for item in documents_only["items"]] == ["Documents"]
+        assert [item["page_title"] for item in images_only["items"]] == ["Images"]
 
 
 def test_history_summary_counts():
@@ -364,8 +394,8 @@ def test_history_summary_counts():
         assert payload["summary"]["total_items"] == 2
         assert payload["summary"]["status_counts"]["success"] == 1
         assert payload["summary"]["status_counts"]["no_stream_found"] == 1
-        assert payload["summary"]["media_counts"]["streams"] == 1
-        assert payload["summary"]["media_counts"]["videos"] == 1
+        assert payload["summary"]["asset_counts"]["stream"] == 1
+        assert payload["summary"]["asset_counts"]["video"] == 1
 
 
 def test_markdown_report_export():

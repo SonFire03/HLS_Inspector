@@ -14,6 +14,7 @@ const detailsStreams = document.getElementById("details-streams");
 const detailsTrace = document.getElementById("details-trace");
 const detailsSourceType = document.getElementById("details-source-type");
 const detailsVideos = document.getElementById("details-videos");
+const detailsAssets = document.getElementById("details-assets");
 const historySearch = document.getElementById("history-search");
 const historyStatus = document.getElementById("history-status");
 const historyMedia = document.getElementById("history-media");
@@ -63,6 +64,11 @@ function appendHistoryRow(item) {
   row.dataset.id = item.id;
   const streams = Array.isArray(item.streams) ? item.streams : [];
   const videos = Array.isArray(item.videos) ? item.videos : [];
+  const extraAssets = [
+    ...(Array.isArray(item.documents) ? item.documents : []),
+    ...(Array.isArray(item.images) ? item.images : []),
+    ...(Array.isArray(item.other_assets) ? item.other_assets : []),
+  ];
   row.innerHTML = `
     <td>${item.id}</td>
     <td>${escapeHtml(item.page_title || "Sans titre")}</td>
@@ -90,6 +96,18 @@ function appendHistoryRow(item) {
           `).join("")}
         </div>
       ` : '<span class="muted">Aucun</span>'}
+    </td>
+    <td>
+      ${extraAssets.length ? `
+        <div class="stream-cell">
+          ${extraAssets.map((asset) => `
+            <div class="stream-pill">
+              <code>${escapeHtml(asset)}</code>
+              <button class="copy-button" type="button" data-copy="${escapeAttr(asset)}">Copier</button>
+            </div>
+          `).join("")}
+        </div>
+      ` : '<span class="muted">Aucune</span>'}
     </td>
     <td><span class="badge badge-source source-${escapeAttr(item.source_type || "unknown")}">${escapeHtml(item.source_label || "Inconnue")}</span></td>
     <td>${escapeHtml(item.scanned_at)}</td>
@@ -212,21 +230,21 @@ function renderChart(container, entries, emptyLabel) {
 function updateDashboard(summary) {
   const safeSummary = summary || {};
   const statusCounts = safeSummary.status_counts || {};
-  const mediaCounts = safeSummary.media_counts || {};
+  const typeCounts = safeSummary.asset_counts || {};
   const sourceCounts = safeSummary.source_counts || {};
 
   const statusEntries = Object.entries(statusCounts)
     .map(([label, value]) => ({ label, value, variant: `status-${label}` }))
     .sort((a, b) => b.value - a.value);
-  const mediaEntries = Object.entries(mediaCounts)
-    .map(([label, value]) => ({ label, value, variant: `media-${label}` }))
+  const mediaEntries = Object.entries(typeCounts)
+    .map(([label, value]) => ({ label, value, variant: `type-${label}` }))
     .sort((a, b) => b.value - a.value);
   const sourceEntries = Object.entries(sourceCounts)
     .map(([label, value]) => ({ label, value, variant: `source-${label}` }))
     .sort((a, b) => b.value - a.value);
 
   renderChart(dashboardStatusChart, statusEntries, "Aucune donnée de statut.");
-  renderChart(dashboardMediaChart, mediaEntries, "Aucune donnée média.");
+  renderChart(dashboardMediaChart, mediaEntries, "Aucune donnée de type.");
   renderChart(dashboardSourceChart, sourceEntries, "Aucune donnée source.");
 
   const statusTotal = statusEntries.reduce((sum, entry) => sum + entry.value, 0);
@@ -295,6 +313,32 @@ function openDetails(item) {
       });
     } else {
       detailsVideos.textContent = item.status === "success" ? "Vidéos non présentes sur cette ligne." : "Aucune";
+    }
+  }
+
+  if (detailsAssets) {
+    detailsAssets.innerHTML = "";
+    const extraAssets = [
+      ...(Array.isArray(item.documents) ? item.documents : []),
+      ...(Array.isArray(item.images) ? item.images : []),
+      ...(Array.isArray(item.other_assets) ? item.other_assets : []),
+    ];
+    if (extraAssets.length) {
+      extraAssets.forEach((asset) => {
+        const wrapper = document.createElement("div");
+        wrapper.className = "stream-pill";
+        const code = document.createElement("code");
+        code.textContent = asset;
+        const copy = document.createElement("button");
+        copy.type = "button";
+        copy.className = "copy-button";
+        copy.dataset.copy = asset;
+        copy.textContent = "Copier";
+        wrapper.append(code, copy);
+        detailsAssets.appendChild(wrapper);
+      });
+    } else {
+      detailsAssets.textContent = "Aucune";
     }
   }
 

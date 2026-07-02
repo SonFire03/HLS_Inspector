@@ -23,12 +23,24 @@
         <strong class="stat-value">{{ report_stats.total_items }}</strong>
       </article>
       <article class="stat-card">
+        <span class="stat-label">Ressources</span>
+        <strong class="stat-value">{{ report_stats.total_assets }}</strong>
+      </article>
+      <article class="stat-card">
         <span class="stat-label">Flux .m3u8</span>
         <strong class="stat-value">{{ report_stats.total_streams }}</strong>
       </article>
       <article class="stat-card">
         <span class="stat-label">Vidéos .mp4</span>
         <strong class="stat-value">{{ report_stats.total_videos }}</strong>
+      </article>
+      <article class="stat-card">
+        <span class="stat-label">Documents</span>
+        <strong class="stat-value">{{ report_stats.total_documents }}</strong>
+      </article>
+      <article class="stat-card">
+        <span class="stat-label">Images</span>
+        <strong class="stat-value">{{ report_stats.total_images }}</strong>
       </article>
       <article class="stat-card">
         <span class="stat-label">Sources directes</span>
@@ -77,6 +89,14 @@
         <div class="report-streams">
           {% for video in item.videos %}
             <code>{{ video }}</code>
+          {% endfor %}
+        </div>
+        {% endif %}
+        {% set extra_assets = (item.documents or []) + (item.images or []) + (item.other_assets or []) %}
+        {% if extra_assets %}
+        <div class="report-streams">
+          {% for asset in extra_assets %}
+            <code>{{ asset }}</code>
           {% endfor %}
         </div>
         {% endif %}

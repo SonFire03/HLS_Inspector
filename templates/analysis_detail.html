@@ -33,6 +33,10 @@
           <strong class="stat-value">{{ item.stream_count }}</strong>
         </div>
         <div class="stat-card">
+          <span class="stat-label">Ressources</span>
+          <strong class="stat-value">{{ item.asset_count }}</strong>
+        </div>
+        <div class="stat-card">
           <span class="stat-label">Date</span>
           <strong class="stat-value stat-value-small">{{ item.scanned_at }}</strong>
         </div>
@@ -72,6 +76,23 @@
         </div>
       {% else %}
         <p class="muted">Aucune vidéo détectée sur cette analyse.</p>
+      {% endif %}
+    </article>
+
+    <article class="panel detail-streams">
+      <h2>Autres ressources</h2>
+      {% set extra_assets = (item.documents or []) + (item.images or []) + (item.other_assets or []) %}
+      {% if extra_assets %}
+        <div class="stream-list">
+          {% for asset in extra_assets %}
+            <div class="stream-card">
+              <code>{{ asset }}</code>
+              <button class="copy-button" type="button" data-copy="{{ asset }}">Copier</button>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="muted">Aucune autre ressource détectée sur cette analyse.</p>
       {% endif %}
     </article>
 
