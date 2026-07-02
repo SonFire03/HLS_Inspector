@@ -1,64 +1,115 @@
 {% extends "base.html" %}
 {% block title %}HLS Inspector{% endblock %}
 {% block content %}
-<section class="hero">
-  <div class="hero-copy">
+{% set latest_item = none %}
+{% if history_view["items"] %}
+  {% set latest_item = history_view["items"][0] %}
+{% endif %}
+
+<header class="app-header panel">
+  <div class="app-header-copy">
     <p class="eyebrow">Analyse locale autorisée</p>
-    <h1>HLS Inspector</h1>
-    <p class="lead">Colle une URL ou dépose un fichier texte pour inventorier les ressources détectables dans le HTML, les iframes et les ressources déclarées.</p>
+    <div class="app-title-row">
+      <h1>HLS Inspector</h1>
+      <span class="badge badge-local">LOCAL</span>
+    </div>
+    <p class="lead">Analyse locale autorisée des flux HLS, médias et ressources liées.</p>
     <div class="hero-pills">
       <span class="hero-pill">HTTP/HTTPS only</span>
       <span class="hero-pill">Pas de téléchargement</span>
       <span class="hero-pill">HTML + ressources liées</span>
-    </div>
-    <div class="hero-actions">
-      <a class="ghost-button" href="#composer">Nouvelle analyse</a>
-      <a class="ghost-button" href="#history">Voir l’historique</a>
+      <span class="hero-pill">Analyse locale</span>
     </div>
   </div>
-  <div class="hero-side">
-    <div class="hero-visual panel">
-      <div class="hero-visual-top">
-        <div class="hero-visual-copy">
-          <span class="hero-visual-kicker">
-            <span class="pulse-dot"></span>
-            Scanner visuel
-          </span>
-          <h2>Signal capture</h2>
-          <p>Vue synthétique des flux, médias et ressources extraites par l’analyse locale.</p>
-        </div>
-        <div class="hero-visual-chip">LOCAL</div>
+</header>
+
+<section class="app-grid">
+  <section class="panel composer" id="composer">
+    <div class="panel-head">
+      <div>
+        <p class="eyebrow">Composer</p>
+        <h2>Analyse</h2>
+        <p class="section-subtitle">Colle une URL ou dépose un fichier `.txt` contenant une ou plusieurs URLs.</p>
       </div>
-      <div class="orb-scene" aria-hidden="true">
-        <div class="orb-ring orb-ring-a"></div>
-        <div class="orb-ring orb-ring-b"></div>
-        <div class="orb-ring orb-ring-c"></div>
-        <div class="orb-core">HLS</div>
-      </div>
-      <div class="hero-visual-grid">
-        <div class="visual-tile">
-          <span>Analyses</span>
-          <strong>{{ history_view.pagination.total_items }}</strong>
-        </div>
-        <div class="visual-tile">
-          <span>Flux</span>
-          <strong>{{ history_view.summary.asset_counts.stream or 0 }}</strong>
-        </div>
-        <div class="visual-tile">
-          <span>Vidéos</span>
-          <strong>{{ history_view.summary.asset_counts.video or 0 }}</strong>
-        </div>
-        <div class="visual-tile">
-          <span>Ressources</span>
-          <strong>{{ history_view.summary.total_assets }}</strong>
-        </div>
-      </div>
+      <span id="status-message" class="status-message" aria-live="polite"></span>
     </div>
-  </div>
+    <form id="analyze-form" class="analysis-form">
+      <textarea id="url-input" name="url" rows="7" placeholder="https://example.com/video"></textarea>
+      <div class="composer-grid">
+        <div id="dropzone" class="dropzone" tabindex="0" aria-label="Zone de dépôt">
+          <span class="dropzone-badge">Drag & Drop</span>
+          <strong>Glisser-déposer un fichier `.txt`</strong>
+          <span>Ou coller directement une ou plusieurs URLs autorisées.</span>
+          <div class="dropzone-note">Inspection locale seulement, sans téléchargement de média.</div>
+        </div>
+        <div class="composer-actions">
+          <button class="primary-button" type="submit">Analyser</button>
+          <div class="secondary-actions">
+            <a class="ghost-button" href="#composer">Nouvelle analyse</a>
+            <a class="ghost-button" href="#history">Historique</a>
+            <a class="ghost-button" href="/export/json">Export JSON</a>
+            <a class="ghost-button" href="/export/csv">Export CSV</a>
+          </div>
+        </div>
+      </div>
+      <div class="inline-help">
+        <span class="inline-chip">Timeout 10 s</span>
+        <span class="inline-chip">HTML limité à 5 Mo</span>
+        <span class="inline-chip">Sources liées suivies</span>
+      </div>
+    </form>
+  </section>
+
+  <aside class="panel signal-panel">
+    <div class="panel-head">
+      <div>
+        <p class="eyebrow">Signal Capture</p>
+        <h2>Monitoring local</h2>
+        <p class="section-subtitle">Vue synthétique des résultats observés sur l’historique filtré.</p>
+      </div>
+      <span class="badge badge-local">LOCAL</span>
+    </div>
+    <div class="signal-scanner" aria-hidden="true">
+      <div class="signal-ring signal-ring-a"></div>
+      <div class="signal-ring signal-ring-b"></div>
+      <div class="signal-ring signal-ring-c"></div>
+      <div class="signal-core">HLS</div>
+    </div>
+    <div class="signal-summary">
+      <article class="signal-stat">
+        <span>Analyses</span>
+        <strong>{{ history_view.pagination.total_items }}</strong>
+      </article>
+      <article class="signal-stat">
+        <span>Flux</span>
+        <strong>{{ history_view.summary.asset_counts.stream or 0 }}</strong>
+      </article>
+      <article class="signal-stat">
+        <span>Vidéos</span>
+        <strong>{{ history_view.summary.asset_counts.video or 0 }}</strong>
+      </article>
+      <article class="signal-stat">
+        <span>Ressources</span>
+        <strong>{{ history_view.summary.total_assets }}</strong>
+      </article>
+    </div>
+  </aside>
 </section>
 
-<section class="panel hero-summary">
-  <div class="stat-grid" id="hero-stats">
+<section class="panel stats-panel">
+  <div class="panel-head">
+    <div>
+      <p class="eyebrow">Vue globale</p>
+      <h2>Statistiques</h2>
+      <p class="section-subtitle">Un seul bloc de synthèse, lisible et compact.</p>
+    </div>
+    <div class="panel-head-actions">
+      <a class="ghost-button" href="/export/report/html" target="_blank" rel="noreferrer">Rapport HTML</a>
+      <a class="ghost-button" href="/export/report/markdown">Markdown</a>
+      <button class="danger-button" id="clear-history" type="button">Vider l’historique</button>
+    </div>
+  </div>
+  <div class="stat-grid stat-grid-wide" id="hero-stats">
     <article class="stat-card">
       <span class="stat-label">Analyses</span>
       <strong class="stat-value" id="stat-analyses">{{ history_view.pagination.total_items }}</strong>
@@ -72,6 +123,10 @@
       <strong class="stat-value" id="stat-videos">0</strong>
     </article>
     <article class="stat-card">
+      <span class="stat-label">Ressources</span>
+      <strong class="stat-value" id="stat-resources">0</strong>
+    </article>
+    <article class="stat-card">
       <span class="stat-label">Pages directes</span>
       <strong class="stat-value" id="stat-direct">0</strong>
     </article>
@@ -79,98 +134,92 @@
       <span class="stat-label">Sources suivies</span>
       <strong class="stat-value" id="stat-sources">0</strong>
     </article>
-    <article class="stat-card">
-      <span class="stat-label">Actions</span>
-      <div class="actions-bar actions-bar-compact">
-        <a class="ghost-button" href="/export/json">JSON</a>
-        <a class="ghost-button" href="/export/csv">CSV</a>
-        <a class="ghost-button" href="/export/report/html" target="_blank" rel="noreferrer">Rapport</a>
-      </div>
-    </article>
   </div>
 </section>
 
-<section class="panel dashboard-panel">
-  <div class="section-top">
+<section class="panel latest-panel">
+  <div class="panel-head">
     <div>
-      <h2>Tableau de bord</h2>
-      <p class="section-subtitle">Répartition de l’historique filtré en temps réel.</p>
-    </div>
-    <span class="muted" id="dashboard-total">{{ history_view.summary.total_items }} analyses filtrées</span>
+      <p class="eyebrow">Dernière analyse</p>
+      <h2>Résultat le plus récent</h2>
+  <p class="section-subtitle">Résumé compact pour lire le dernier scan sans ouvrir l’historique.</p>
   </div>
-  <div class="dashboard-grid">
-    <article class="dashboard-card">
-      <div class="dashboard-card-head">
-        <h3>Statuts</h3>
-        <span class="muted" id="dashboard-status-total">{{ history_view.summary.total_items }} entrées</span>
-      </div>
-      <div id="dashboard-status-chart" class="chart-list"></div>
-    </article>
-    <article class="dashboard-card">
-      <div class="dashboard-card-head">
-        <h3>Types</h3>
-        <span class="muted" id="dashboard-media-total">{{ history_view.summary.total_items }} entrées</span>
-      </div>
-      <div id="dashboard-media-chart" class="chart-list"></div>
-    </article>
-    <article class="dashboard-card">
-      <div class="dashboard-card-head">
-        <h3>Sources</h3>
-        <span class="muted" id="dashboard-source-total">{{ history_view.summary.total_items }} entrées</span>
-      </div>
-      <div id="dashboard-source-chart" class="chart-list"></div>
-    </article>
+  <span class="muted">{{ latest_item.scanned_at if latest_item else "Aucune analyse" }}</span>
   </div>
-</section>
-
-<section class="panel composer" id="composer">
-  <form id="analyze-form" class="analysis-form">
-  <div class="composer-header">
-    <div>
-        <p class="eyebrow">Composer</p>
-        <label class="field-label" for="url-input">URL ou texte contenant des URLs</label>
-        <p class="composer-subtitle">Dépose une URL, un texte brut ou un fichier `.txt` avec plusieurs adresses.</p>
+  <div id="latest-analysis-content">
+  {% if latest_item %}
+  <article class="latest-card" data-id="{{ latest_item.id }}">
+    <div class="latest-top">
+      <div>
+        <h3>{{ latest_item.page_title or "Sans titre" }}</h3>
+        <p class="latest-url truncate"><a href="{{ latest_item.page_url }}" target="_blank" rel="noreferrer">{{ latest_item.page_url }}</a></p>
       </div>
-      <span id="status-message" class="status-message" aria-live="polite"></span>
+      <div class="latest-statuses">
+        <span class="badge status-{{ latest_item.status }}">{{ latest_item.status }}</span>
+        <span class="badge badge-source source-{{ latest_item.source_type }}">{{ latest_item.source_label }}</span>
+      </div>
     </div>
-    <div class="composer-grid">
-      <div class="composer-input">
-        <textarea id="url-input" name="url" rows="6" placeholder="https://example.com/video"></textarea>
-        <div class="composer-footer">
-          <span class="inline-chip">Collage direct</span>
-          <span class="inline-chip">Multi-URLs</span>
-          <span class="inline-chip">Aucune exécution distante</span>
+    <div class="latest-grid">
+      <div class="latest-block">
+        <span class="latest-label">Flux .m3u8</span>
+        <div class="latest-value-list">
+          {% if latest_item.streams %}
+            <div class="stream-pill">
+              <code>{{ latest_item.streams[0] }}</code>
+              <button class="copy-button" type="button" data-copy="{{ latest_item.streams[0] }}">Copier</button>
+            </div>
+            {% if latest_item.streams|length > 1 %}
+              <span class="muted">+ {{ latest_item.streams|length - 1 }} autre(s)</span>
+            {% endif %}
+          {% else %}
+            <span class="muted">Aucun flux détecté</span>
+          {% endif %}
         </div>
       </div>
-      <div id="dropzone" class="dropzone" tabindex="0" aria-label="Zone de dépôt">
-        <span class="dropzone-badge">Drag & Drop</span>
-        <strong>Glisser-déposer ici</strong>
-        <span>URL en texte ou fichier `.txt` contenant une ou plusieurs URLs</span>
-        <div class="dropzone-note">La zone accepte aussi le collage direct d’une URL.</div>
+      <div class="latest-block">
+        <span class="latest-label">Ressources</span>
+        <div class="latest-meta-row">
+          <span class="mini-chip">Vidéos {{ latest_item.video_count }}</span>
+          <span class="mini-chip">Ressources {{ latest_item.asset_count }}</span>
+          <span class="mini-chip">Date {{ latest_item.scanned_at }}</span>
+        </div>
       </div>
     </div>
-    <div class="form-row form-row-spaced">
-      <button class="primary-button" type="submit">Analyser</button>
-      <div class="inline-help">
-        <span class="inline-chip">Timeout 10 s</span>
-        <span class="inline-chip">HTML limité à 5 Mo</span>
-        <span class="inline-chip">Sources liées suivies</span>
-      </div>
+    <div class="latest-actions">
+      <button class="ghost-button details-row" type="button">Aperçu</button>
+      <a class="ghost-button" href="/analysis/{{ latest_item.id }}" target="_blank" rel="noreferrer">Rapport</a>
+      <button class="danger-button delete-row" type="button">Supprimer</button>
     </div>
-  </form>
+  </article>
+  {% else %}
+  <div class="empty-state">
+    <strong>Aucune analyse enregistrée.</strong>
+    <p>Colle une URL ou dépose un fichier texte pour lancer la première inspection locale.</p>
+  </div>
+  {% endif %}
+  </div>
 </section>
 
-<section class="panel" id="history">
-  <div class="section-top">
+<section class="panel history-panel" id="history">
+  <div class="panel-head">
     <div>
-      <h2>Historique</h2>
-      <p class="section-subtitle">Vue groupée par analyse, avec filtres et pagination.</p>
+      <p class="eyebrow">Historique</p>
+      <h2>Résultats</h2>
+      <p class="section-subtitle">Mode cartes par défaut, tableau expert disponible au besoin.</p>
     </div>
-    <span class="muted" id="history-meta">{{ history_view.pagination.total_items }} analyses</span>
+    <div class="panel-head-actions">
+      <span class="muted" id="history-meta">{{ history_view.pagination.total_items }} analyses</span>
+      <div class="view-toggle" role="tablist" aria-label="Mode historique">
+        <button class="ghost-button view-toggle-button active" type="button" data-history-view="cards">Cartes</button>
+        <button class="ghost-button view-toggle-button" type="button" data-history-view="table">Expert</button>
+      </div>
+    </div>
   </div>
+
   <div class="history-toolbar">
     <label class="sr-only" for="history-search">Recherche</label>
     <input id="history-search" type="search" placeholder="Rechercher titre, URL, statut, erreur" value="{{ history_view.filters.search }}">
+
     <label class="sr-only" for="history-status">Statut</label>
     <select id="history-status">
       <option value="all" {% if history_view.filters.status == "all" %}selected{% endif %}>Tous les statuts</option>
@@ -179,7 +228,8 @@
       <option value="error" {% if history_view.filters.status == "error" %}selected{% endif %}>error</option>
       <option value="invalid_url" {% if history_view.filters.status == "invalid_url" %}selected{% endif %}>invalid_url</option>
     </select>
-    <label class="sr-only" for="history-media">Média</label>
+
+    <label class="sr-only" for="history-media">Type</label>
     <select id="history-media">
       <option value="all" {% if history_view.filters.media == "all" %}selected{% endif %}>Tous les types</option>
       <option value="streams" {% if history_view.filters.media == "streams" %}selected{% endif %}>Flux .m3u8</option>
@@ -189,102 +239,165 @@
       <option value="other" {% if history_view.filters.media == "other" %}selected{% endif %}>Autres ressources</option>
       <option value="empty" {% if history_view.filters.media == "empty" %}selected{% endif %}>Aucune ressource</option>
     </select>
-    <label class="sr-only" for="history-per-page">Par page</label>
+
+    <label class="sr-only" for="history-per-page">Limite</label>
     <select id="history-per-page">
       <option value="5" {% if history_view.pagination.per_page == 5 %}selected{% endif %}>5</option>
       <option value="10" {% if history_view.pagination.per_page == 10 %}selected{% endif %}>10</option>
       <option value="20" {% if history_view.pagination.per_page == 20 %}selected{% endif %}>20</option>
       <option value="50" {% if history_view.pagination.per_page == 50 %}selected{% endif %}>50</option>
     </select>
+
     <button class="ghost-button" id="history-apply" type="button">Filtrer</button>
     <button class="ghost-button" id="history-reset" type="button">Réinitialiser</button>
-    <a class="ghost-button" href="/export/detail/json">Export détaillé JSON</a>
-    <a class="ghost-button" href="/export/detail/csv">Export détaillé CSV</a>
+    <a class="ghost-button" href="/export/json">Export JSON</a>
+    <a class="ghost-button" href="/export/csv">Export CSV</a>
   </div>
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Titre</th>
-          <th>URL de page</th>
-          <th>Flux .m3u8</th>
-          <th>Vidéos .mp4</th>
-          <th>Ressources</th>
-          <th>Source</th>
-          <th>Date</th>
-          <th>Statut</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody id="history-body">
-        {% for item in history_view["items"] %}
-        <tr data-id="{{ item.id }}">
-          <td>{{ item.id }}</td>
-          <td>{{ item.page_title or "Sans titre" }}</td>
-          <td class="truncate"><a href="{{ item.page_url }}" target="_blank" rel="noreferrer">{{ item.page_url }}</a></td>
-          <td>
-            {% if item.streams %}
-              <div class="stream-cell">
-                {% for stream in item.streams %}
-                  <div class="stream-pill">
-                    <code>{{ stream }}</code>
-                    <button class="copy-button" type="button" data-copy="{{ stream }}">Copier</button>
-                  </div>
-                {% endfor %}
+
+  <div class="history-view" data-view="cards">
+    <div id="history-cards" class="history-cards">
+      {% for item in history_view["items"] %}
+      {% set first_stream = item.streams[0] if item.streams else none %}
+      <article class="history-card" data-id="{{ item.id }}">
+        <div class="history-card-top">
+          <div class="history-card-heading">
+            <h3>{{ item.page_title or "Sans titre" }}</h3>
+            <p class="history-card-url truncate"><a href="{{ item.page_url }}" target="_blank" rel="noreferrer">{{ item.page_url }}</a></p>
+          </div>
+          <div class="history-card-badges">
+            <span class="badge status-{{ item.status }}">{{ item.status }}</span>
+            <span class="badge badge-source source-{{ item.source_type }}">{{ item.source_label }}</span>
+          </div>
+        </div>
+        <div class="history-card-body">
+          <div class="history-card-block">
+            <span class="latest-label">Flux détecté</span>
+            {% if first_stream %}
+              <div class="stream-pill">
+                <code>{{ first_stream }}</code>
+                <button class="copy-button" type="button" data-copy="{{ first_stream }}">Copier</button>
               </div>
             {% else %}
-              <span class="muted">Aucun</span>
+              <span class="muted">Aucun flux détecté</span>
             {% endif %}
-          </td>
-          <td>
-            {% if item.videos %}
-              <div class="stream-cell">
-                {% for video in item.videos %}
-                  <div class="stream-pill">
-                    <code>{{ video }}</code>
-                    <button class="copy-button" type="button" data-copy="{{ video }}">Copier</button>
-                  </div>
-                {% endfor %}
+          </div>
+          <div class="history-card-block history-card-metrics">
+            <span class="mini-chip">Date {{ item.scanned_at }}</span>
+            <span class="mini-chip">Ressources {{ item.asset_count }}</span>
+            <span class="mini-chip">Vidéos {{ item.video_count }}</span>
+            <span class="mini-chip">Source {{ item.source_label }}</span>
+          </div>
+        </div>
+        <div class="history-card-actions">
+          <button class="ghost-button copy-page-button" type="button" data-copy="{{ item.page_url }}">Copier URL</button>
+          {% if first_stream %}
+          <button class="ghost-button copy-stream-button" type="button" data-copy="{{ first_stream }}">Copier flux</button>
+          {% else %}
+          <button class="ghost-button copy-stream-button" type="button" disabled>Copier flux</button>
+          {% endif %}
+          <button class="ghost-button details-row" type="button">Voir détails</button>
+          <a class="ghost-button" href="/analysis/{{ item.id }}" target="_blank" rel="noreferrer">Aperçu</a>
+          <button class="danger-button delete-row" type="button">Supprimer</button>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+
+    <div id="history-table-wrap" class="history-table-wrap hidden">
+      <table class="history-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Titre</th>
+            <th>URL</th>
+            <th>Flux</th>
+            <th>Vidéos</th>
+            <th>Ressources</th>
+            <th>Source</th>
+            <th>Date</th>
+            <th>Statut</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="history-table-body">
+          {% for item in history_view["items"] %}
+          <tr data-id="{{ item.id }}">
+            <td>{{ item.id }}</td>
+            <td>{{ item.page_title or "Sans titre" }}</td>
+            <td class="cell-truncate">
+              <div class="cell-link-row">
+                <a href="{{ item.page_url }}" target="_blank" rel="noreferrer">{{ item.page_url }}</a>
+                <button class="copy-button" type="button" data-copy="{{ item.page_url }}">Copier</button>
               </div>
-            {% else %}
-              <span class="muted">Aucun</span>
-            {% endif %}
-          </td>
-          <td>
-            {% set extra_assets = (item.documents or []) + (item.images or []) + (item.other_assets or []) %}
-            {% if extra_assets %}
-              <div class="stream-cell">
-                {% for asset in extra_assets %}
-                  <div class="stream-pill">
-                    <code>{{ asset }}</code>
-                    <button class="copy-button" type="button" data-copy="{{ asset }}">Copier</button>
-                  </div>
-                {% endfor %}
+            </td>
+            <td>
+              {% if item.streams %}
+                <div class="cell-stack">
+                  {% for stream in item.streams %}
+                    <div class="stream-pill">
+                      <code>{{ stream }}</code>
+                      <button class="copy-button" type="button" data-copy="{{ stream }}">Copier</button>
+                    </div>
+                  {% endfor %}
+                </div>
+              {% else %}
+                <span class="muted">Aucun</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if item.videos %}
+                <div class="cell-stack">
+                  {% for video in item.videos %}
+                    <div class="stream-pill">
+                      <code>{{ video }}</code>
+                      <button class="copy-button" type="button" data-copy="{{ video }}">Copier</button>
+                    </div>
+                  {% endfor %}
+                </div>
+              {% else %}
+                <span class="muted">Aucun</span>
+              {% endif %}
+            </td>
+            <td>
+              {% set extra_assets = (item.documents or []) + (item.images or []) + (item.other_assets or []) %}
+              {% if extra_assets %}
+                <div class="cell-stack">
+                  {% for asset in extra_assets %}
+                    <div class="stream-pill">
+                      <code>{{ asset }}</code>
+                      <button class="copy-button" type="button" data-copy="{{ asset }}">Copier</button>
+                    </div>
+                  {% endfor %}
+                </div>
+              {% else %}
+                <span class="muted">Aucune</span>
+              {% endif %}
+            </td>
+            <td><span class="badge badge-source source-{{ item.source_type }}">{{ item.source_label }}</span></td>
+            <td>{{ item.scanned_at }}</td>
+            <td><span class="badge status-{{ item.status }}">{{ item.status }}</span></td>
+            <td>
+              <div class="table-actions">
+                <button class="ghost-button details-row" type="button">Détails</button>
+                <a class="ghost-button" href="/analysis/{{ item.id }}" target="_blank" rel="noreferrer">Page</a>
+                <button class="danger-button delete-row" type="button">Supprimer</button>
               </div>
-            {% else %}
-              <span class="muted">Aucune</span>
-            {% endif %}
-          </td>
-          <td><span class="badge badge-source source-{{ item.source_type }}">{{ item.source_label }}</span></td>
-          <td>{{ item.scanned_at }}</td>
-          <td><span class="badge status-{{ item.status }}">{{ item.status }}</span></td>
-          <td>
-            <button class="ghost-button details-row" type="button">Aperçu</button>
-            <a class="ghost-button" href="/analysis/{{ item.id }}" target="_blank" rel="noreferrer">Page</a>
-            <button class="danger-button delete-row" type="button">Supprimer</button>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
+
   <div class="pagination-bar">
     <button class="ghost-button" id="history-prev" type="button" {% if not history_view.pagination.has_previous %}disabled{% endif %}>Précédent</button>
     <span id="history-page" class="muted">Page {{ history_view.pagination.page }} / {{ history_view.pagination.total_pages }}</span>
     <button class="ghost-button" id="history-next" type="button" {% if not history_view.pagination.has_next %}disabled{% endif %}>Suivant</button>
   </div>
 </section>
+
+<div id="toast" class="toast" aria-live="polite" aria-atomic="true"></div>
 
 <div id="details-modal" class="modal hidden" aria-hidden="true" role="dialog" aria-modal="true">
   <div class="modal-backdrop" data-close-modal></div>

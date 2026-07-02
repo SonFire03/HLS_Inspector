@@ -2,7 +2,9 @@ const statusMessage = document.getElementById("status-message");
 const form = document.getElementById("analyze-form");
 const input = document.getElementById("url-input");
 const dropzone = document.getElementById("dropzone");
-const historyBody = document.getElementById("history-body");
+const historyCards = document.getElementById("history-cards");
+const historyTableBody = document.getElementById("history-table-body");
+const historyTableWrap = document.getElementById("history-table-wrap");
 const clearHistoryButton = document.getElementById("clear-history");
 const detailsModal = document.getElementById("details-modal");
 const detailsTitle = document.getElementById("details-title");
@@ -25,10 +27,15 @@ const historyPrev = document.getElementById("history-prev");
 const historyNext = document.getElementById("history-next");
 const historyPage = document.getElementById("history-page");
 const historyCache = new Map();
+const historyModeButtons = document.querySelectorAll("[data-history-view]");
 const historyMeta = document.getElementById("history-meta");
+const latestAnalysisContent = document.getElementById("latest-analysis-content");
+const toast = document.getElementById("toast");
+const submitButton = form.querySelector("button[type='submit']");
 const statAnalyses = document.getElementById("stat-analyses");
 const statStreams = document.getElementById("stat-streams");
 const statVideos = document.getElementById("stat-videos");
+const statResources = document.getElementById("stat-resources");
 const statDirect = document.getElementById("stat-direct");
 const statSources = document.getElementById("stat-sources");
 const dashboardTotal = document.getElementById("dashboard-total");
@@ -45,6 +52,7 @@ const historyState = {
   status: historyStatus?.value || "all",
   media: historyMedia?.value || "all",
   search: historySearch?.value || "",
+  view: localStorage.getItem("history-view") || "cards",
   grouped: true,
 };
 
@@ -58,66 +66,257 @@ function extractUrls(text) {
   return [...new Set(matches.map((item) => item.trim()))];
 }
 
-function appendHistoryRow(item) {
-  historyCache.set(String(item.id), item);
-  const row = document.createElement("tr");
-  row.dataset.id = item.id;
-  const streams = Array.isArray(item.streams) ? item.streams : [];
-  const videos = Array.isArray(item.videos) ? item.videos : [];
-  const extraAssets = [
+function getItemStreams(item) {
+  return Array.isArray(item.streams) ? item.streams : [];
+}
+
+function getItemVideos(item) {
+  return Array.isArray(item.videos) ? item.videos : [];
+}
+
+function getExtraAssets(item) {
+  return [
     ...(Array.isArray(item.documents) ? item.documents : []),
     ...(Array.isArray(item.images) ? item.images : []),
     ...(Array.isArray(item.other_assets) ? item.other_assets : []),
   ];
+}
+
+function getPrimaryStream(item) {
+  const streams = getItemStreams(item);
+  return streams.length ? streams[0] : null;
+}
+
+function escapeText(value) {
+  return escapeHtml(value);
+}
+
+function renderCopyButton(value, label = "Copier") {
+  if (!value) {
+    return `<button class="copy-button" type="button" disabled>${label}</button>`;
+  }
+  return `<button class="copy-button" type="button" data-copy="${escapeAttr(value)}">${label}</button>`;
+}
+
+function renderStreamBlock(value, label = "Copier") {
+  return `
+    <div class="stream-pill">
+      <code title="${escapeAttr(value)}">${escapeText(value)}</code>
+      ${renderCopyButton(value, label)}
+    </div>
+  `;
+}
+
+function renderCompactValueList(values, emptyLabel) {
+  if (!values.length) {
+    return `<span class="muted">${escapeText(emptyLabel)}</span>`;
+  }
+  const [first, ...rest] = values;
+  return `
+    <div class="cell-stack">
+      ${renderStreamBlock(first)}
+      ${rest.length ? `<span class="muted">+ ${rest.length} autre(s)</span>` : ""}
+    </div>
+  `;
+}
+
+function renderAssetList(values) {
+  if (!values.length) {
+    return '<span class="muted">Aucune</span>';
+  }
+  return `
+    <div class="cell-stack">
+      ${values.map((value) => renderStreamBlock(value)).join("")}
+    </div>
+  `;
+}
+
+function renderHistoryCard(item) {
+  const streams = getItemStreams(item);
+  const primaryStream = getPrimaryStream(item);
+  const extraAssets = getExtraAssets(item);
+  const card = document.createElement("article");
+  card.className = "history-card";
+  card.dataset.id = item.id;
+  card.innerHTML = `
+    <div class="history-card-top">
+      <div class="history-card-heading">
+        <h3>${escapeText(item.page_title || "Sans titre")}</h3>
+        <p class="history-card-url truncate"><a href="${escapeAttr(item.page_url)}" target="_blank" rel="noreferrer" title="${escapeAttr(item.page_url)}">${escapeText(item.page_url)}</a></p>
+      </div>
+      <div class="history-card-badges">
+        <span class="badge status-${escapeAttr(item.status)}">${escapeText(item.status)}</span>
+        <span class="badge badge-source source-${escapeAttr(item.source_type || "unknown")}">${escapeText(item.source_label || "Inconnue")}</span>
+      </div>
+    </div>
+    <div class="history-card-body">
+      <div class="history-card-block">
+        <span class="latest-label">Flux détecté</span>
+        ${primaryStream ? renderStreamBlock(primaryStream) : '<span class="muted">Aucun flux détecté</span>'}
+        ${streams.length > 1 ? `<span class="muted">+ ${streams.length - 1} autre(s)</span>` : ""}
+      </div>
+      <div class="history-card-block history-card-metrics">
+        <span class="mini-chip">Date ${escapeText(item.scanned_at)}</span>
+        <span class="mini-chip">Ressources ${Number(item.asset_count || extraAssets.length || 0)}</span>
+        <span class="mini-chip">Vidéos ${Number(item.video_count || getItemVideos(item).length || 0)}</span>
+        <span class="mini-chip">Source ${escapeText(item.source_label || "Inconnue")}</span>
+      </div>
+    </div>
+    <div class="history-card-actions">
+      ${renderCopyButton(item.page_url, "Copier URL")}
+      ${renderCopyButton(primaryStream, "Copier flux")}
+      <button class="ghost-button details-row" type="button">Voir détails</button>
+      <a class="ghost-button" href="/analysis/${item.id}" target="_blank" rel="noreferrer">Aperçu</a>
+      <button class="danger-button delete-row" type="button">Supprimer</button>
+    </div>
+  `;
+  return card;
+}
+
+function renderHistoryTableRow(item) {
+  const streams = getItemStreams(item);
+  const videos = getItemVideos(item);
+  const extraAssets = getExtraAssets(item);
+  const row = document.createElement("tr");
+  row.dataset.id = item.id;
   row.innerHTML = `
     <td>${item.id}</td>
-    <td>${escapeHtml(item.page_title || "Sans titre")}</td>
-    <td class="truncate"><a href="${escapeAttr(item.page_url)}" target="_blank" rel="noreferrer">${escapeHtml(item.page_url)}</a></td>
-    <td>
-      ${streams.length ? `
-        <div class="stream-cell">
-          ${streams.map((stream) => `
-            <div class="stream-pill">
-              <code>${escapeHtml(stream)}</code>
-              <button class="copy-button" type="button" data-copy="${escapeAttr(stream)}">Copier</button>
-            </div>
-          `).join("")}
-        </div>
-      ` : '<span class="muted">Aucun</span>'}
+    <td>${escapeText(item.page_title || "Sans titre")}</td>
+    <td class="cell-truncate">
+      <div class="cell-link-row">
+        <a href="${escapeAttr(item.page_url)}" target="_blank" rel="noreferrer" title="${escapeAttr(item.page_url)}">${escapeText(item.page_url)}</a>
+        ${renderCopyButton(item.page_url)}
+      </div>
     </td>
+    <td>${renderCompactValueList(streams, "Aucun")}</td>
+    <td>${renderCompactValueList(videos, "Aucun")}</td>
+    <td>${renderCompactValueList(extraAssets, "Aucune")}</td>
+    <td><span class="badge badge-source source-${escapeAttr(item.source_type || "unknown")}">${escapeText(item.source_label || "Inconnue")}</span></td>
+    <td>${escapeText(item.scanned_at)}</td>
+    <td><span class="badge status-${escapeAttr(item.status)}">${escapeText(item.status)}</span></td>
     <td>
-      ${videos.length ? `
-        <div class="stream-cell">
-          ${videos.map((video) => `
-            <div class="stream-pill">
-              <code>${escapeHtml(video)}</code>
-              <button class="copy-button" type="button" data-copy="${escapeAttr(video)}">Copier</button>
-            </div>
-          `).join("")}
-        </div>
-      ` : '<span class="muted">Aucun</span>'}
-    </td>
-    <td>
-      ${extraAssets.length ? `
-        <div class="stream-cell">
-          ${extraAssets.map((asset) => `
-            <div class="stream-pill">
-              <code>${escapeHtml(asset)}</code>
-              <button class="copy-button" type="button" data-copy="${escapeAttr(asset)}">Copier</button>
-            </div>
-          `).join("")}
-        </div>
-      ` : '<span class="muted">Aucune</span>'}
-    </td>
-    <td><span class="badge badge-source source-${escapeAttr(item.source_type || "unknown")}">${escapeHtml(item.source_label || "Inconnue")}</span></td>
-    <td>${escapeHtml(item.scanned_at)}</td>
-    <td><span class="badge status-${escapeAttr(item.status)}">${escapeHtml(item.status)}</span></td>
-    <td>
-      <button class="ghost-button details-row" type="button">Détails</button>
-      <button class="danger-button delete-row" type="button">Supprimer</button>
+      <div class="table-actions">
+        <button class="ghost-button details-row" type="button">Détails</button>
+        <a class="ghost-button" href="/analysis/${item.id}" target="_blank" rel="noreferrer">Page</a>
+        <button class="danger-button delete-row" type="button">Supprimer</button>
+      </div>
     </td>
   `;
-  historyBody.prepend(row);
+  return row;
+}
+
+function renderLatestAnalysis(item) {
+  if (!latestAnalysisContent) return;
+  if (!item) {
+    latestAnalysisContent.innerHTML = `
+      <div class="empty-state">
+        <strong>Aucune analyse enregistrée.</strong>
+        <p>Colle une URL ou dépose un fichier texte pour lancer la première inspection locale.</p>
+      </div>
+    `;
+    return;
+  }
+
+  const primaryStream = getPrimaryStream(item);
+  latestAnalysisContent.innerHTML = `
+    <article class="latest-card" data-id="${item.id}">
+      <div class="latest-top">
+        <div>
+          <h3>${escapeText(item.page_title || "Sans titre")}</h3>
+          <p class="latest-url truncate"><a href="${escapeAttr(item.page_url)}" target="_blank" rel="noreferrer" title="${escapeAttr(item.page_url)}">${escapeText(item.page_url)}</a></p>
+        </div>
+        <div class="latest-statuses">
+          <span class="badge status-${escapeAttr(item.status)}">${escapeText(item.status)}</span>
+          <span class="badge badge-source source-${escapeAttr(item.source_type || "unknown")}">${escapeText(item.source_label || "Inconnue")}</span>
+        </div>
+      </div>
+      <div class="latest-grid">
+        <div class="latest-block">
+          <span class="latest-label">Flux .m3u8</span>
+          <div class="latest-value-list">
+            ${primaryStream ? `
+              <div class="stream-pill">
+                <code title="${escapeAttr(primaryStream)}">${escapeText(primaryStream)}</code>
+                ${renderCopyButton(primaryStream)}
+              </div>
+              ${getItemStreams(item).length > 1 ? `<span class="muted">+ ${getItemStreams(item).length - 1} autre(s)</span>` : ""}
+            ` : '<span class="muted">Aucun flux détecté</span>'}
+          </div>
+        </div>
+        <div class="latest-block">
+          <span class="latest-label">Ressources</span>
+          <div class="latest-meta-row">
+            <span class="mini-chip">Vidéos ${Number(item.video_count || 0)}</span>
+            <span class="mini-chip">Ressources ${Number(item.asset_count || 0)}</span>
+            <span class="mini-chip">Date ${escapeText(item.scanned_at)}</span>
+          </div>
+        </div>
+      </div>
+      <div class="latest-actions">
+        <button class="ghost-button details-row" type="button">Aperçu</button>
+        <a class="ghost-button" href="/analysis/${item.id}" target="_blank" rel="noreferrer">Rapport</a>
+        <button class="danger-button delete-row" type="button">Supprimer</button>
+      </div>
+    </article>
+  `;
+}
+
+function renderHistory(items) {
+  historyCache.clear();
+  if (historyCards) {
+    historyCards.innerHTML = "";
+  }
+  if (historyTableBody) {
+    historyTableBody.innerHTML = "";
+  }
+
+  if (!items.length) {
+    if (historyCards) {
+      historyCards.innerHTML = `
+        <div class="empty-state history-empty">
+          <strong>Aucun résultat.</strong>
+          <p>La prochaine analyse apparaîtra ici sous forme de carte, puis dans le tableau expert si besoin.</p>
+        </div>
+      `;
+    }
+    return;
+  }
+
+  items.forEach((item) => {
+    historyCache.set(String(item.id), item);
+    if (historyCards) {
+      historyCards.appendChild(renderHistoryCard(item));
+    }
+    if (historyTableBody) {
+      historyTableBody.appendChild(renderHistoryTableRow(item));
+    }
+  });
+}
+
+function setHistoryView(view) {
+  historyState.view = view === "table" ? "table" : "cards";
+  localStorage.setItem("history-view", historyState.view);
+
+  if (historyCards) {
+    historyCards.classList.toggle("hidden", historyState.view === "table");
+  }
+  if (historyTableWrap) {
+    historyTableWrap.classList.toggle("hidden", historyState.view !== "table");
+  }
+
+  historyModeButtons.forEach((button) => {
+    button.classList.toggle("active", button.dataset.historyView === historyState.view);
+  });
+}
+
+function showToast(message) {
+  if (!toast) return;
+  toast.textContent = message;
+  toast.classList.add("show");
+  window.clearTimeout(showToast.timer);
+  showToast.timer = window.setTimeout(() => {
+    toast.classList.remove("show");
+  }, 1800);
 }
 
 function escapeHtml(value) {
@@ -161,11 +360,11 @@ function buildHistoryQuery() {
 async function refreshHistory() {
   const response = await fetch(`/api/history?${buildHistoryQuery()}`);
   const data = await response.json();
-  historyBody.innerHTML = "";
-  historyCache.clear();
-  data.items.forEach(appendHistoryRow);
+  renderHistory(data.items || []);
   updateHeroStats(data.items, data.pagination);
   updateDashboard(data.summary);
+  renderLatestAnalysis((data.items || [])[0] || null);
+  setHistoryView(historyState.view);
 
   const pagination = data.pagination || {};
   const totalItems = pagination.total_items ?? data.items.length;
@@ -179,6 +378,7 @@ function updateHeroStats(items, pagination) {
   const totalAnalyses = pagination?.total_items ?? items.length;
   const totalStreams = items.reduce((sum, item) => sum + Number(item.stream_count || 0), 0);
   const totalVideos = items.reduce((sum, item) => sum + Number(item.video_count || 0), 0);
+  const totalResources = items.reduce((sum, item) => sum + Number(item.asset_count || 0), 0);
   const directCount = items.filter((item) => item.source_type === "direct").length;
   const sourceTypes = new Set(items.map((item) => item.source_type || "unknown"));
 
@@ -186,6 +386,9 @@ function updateHeroStats(items, pagination) {
   statStreams.textContent = String(totalStreams);
   if (statVideos) {
     statVideos.textContent = String(totalVideos);
+  }
+  if (statResources) {
+    statResources.textContent = String(totalResources);
   }
   statDirect.textContent = String(directCount);
   statSources.textContent = String(sourceTypes.size);
@@ -386,6 +589,13 @@ function closeDetails() {
   detailsModal.setAttribute("aria-hidden", "true");
 }
 
+function setLoading(isLoading) {
+  if (!submitButton) return;
+  form.classList.toggle("is-loading", isLoading);
+  submitButton.disabled = isLoading;
+  submitButton.textContent = isLoading ? "Analyse en cours..." : "Analyser";
+}
+
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
   const urls = extractUrls(input.value);
@@ -396,7 +606,7 @@ form.addEventListener("submit", async (event) => {
   }
 
   setStatus(`Analyse de ${urls.length} URL(s) en cours...`);
-  form.querySelector("button[type='submit']").disabled = true;
+  setLoading(true);
 
   try {
     for (const url of urls) {
@@ -414,7 +624,7 @@ form.addEventListener("submit", async (event) => {
   } catch (error) {
     setStatus(error.message, true);
   } finally {
-    form.querySelector("button[type='submit']").disabled = false;
+    setLoading(false);
   }
 });
 
@@ -446,19 +656,21 @@ dropzone.addEventListener("drop", async (event) => {
 
 dropzone.addEventListener("click", () => input.focus());
 
-historyBody.addEventListener("click", async (event) => {
+async function handleHistoryAction(event) {
   const target = event.target;
   const row = target.closest("tr");
   const item = row ? historyCache.get(String(row.dataset.id)) : null;
+  const card = target.closest(".history-card, .latest-card");
+  const cardItem = card ? historyCache.get(String(card.dataset.id)) : null;
+  const activeItem = item || cardItem;
 
-  if (target.classList.contains("details-row") && item) {
-    openDetails(item);
+  if (target.classList.contains("details-row") && activeItem) {
+    openDetails(activeItem);
     return;
   }
 
   if (target.classList.contains("delete-row")) {
-    const row = target.closest("tr");
-    const id = row?.dataset?.id;
+    const id = row?.dataset?.id || card?.dataset?.id;
     if (!id) return;
     if (!confirm("Supprimer cette entrée ?")) return;
 
@@ -469,15 +681,40 @@ historyBody.addEventListener("click", async (event) => {
     } else {
       setStatus("Impossible de supprimer l’analyse.", true);
     }
+    return;
   }
-});
+ 
+}
+
+if (historyCards) {
+  historyCards.addEventListener("click", async (event) => {
+    await handleHistoryAction(event);
+  });
+}
+
+if (historyTableBody) {
+  historyTableBody.addEventListener("click", async (event) => {
+    await handleHistoryAction(event);
+  });
+}
+
+if (latestAnalysisContent) {
+  latestAnalysisContent.addEventListener("click", async (event) => {
+    await handleHistoryAction(event);
+  });
+}
 
 document.addEventListener("click", async (event) => {
   const target = event.target;
   if (!target.classList.contains("copy-button")) return;
-  await navigator.clipboard.writeText(target.dataset.copy);
-  if (statusMessage) {
+  const text = target.dataset.copy;
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
     setStatus("Lien copié dans le presse-papiers.");
+    showToast("Copié");
+  } catch {
+    setStatus("Copie impossible.", true);
   }
 });
 
@@ -498,7 +735,6 @@ clearHistoryButton.addEventListener("click", async () => {
   const response = await fetch("/api/history", { method: "DELETE" });
   if (response.ok) {
     historyState.page = 1;
-    historyBody.innerHTML = "";
     setStatus("Historique vidé.");
     historyCache.clear();
     await refreshHistory();
@@ -541,4 +777,11 @@ historyNext.addEventListener("click", async () => {
   await refreshHistory();
 });
 
+historyModeButtons.forEach((button) => {
+  button.addEventListener("click", async () => {
+    setHistoryView(button.dataset.historyView);
+  });
+});
+
+setHistoryView(historyState.view);
 refreshHistory();
