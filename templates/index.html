@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}HLS Inspector{% endblock %}
+{% block content %}
+<section class="hero">
+  <div>
+    <p class="eyebrow">Analyse locale autorisée</p>
+    <h1>HLS Inspector</h1>
+    <p class="lead">Colle une URL ou dépose un fichier texte pour inventorier les liens `.m3u8` présents dans le HTML.</p>
+  </div>
+  <div class="actions-bar">
+    <a class="ghost-button" href="/export/json">Export JSON</a>
+    <a class="ghost-button" href="/export/csv">Export CSV</a>
+    <button class="danger-button" id="clear-history" type="button">Vider l’historique</button>
+  </div>
+</section>
+
+<section class="panel composer">
+  <form id="analyze-form" class="analysis-form">
+    <label class="field-label" for="url-input">URL ou texte contenant des URLs</label>
+    <textarea id="url-input" name="url" rows="4" placeholder="https://example.com/video"></textarea>
+    <div id="dropzone" class="dropzone" tabindex="0" aria-label="Zone de dépôt">
+      <strong>Glisser-déposer ici</strong>
+      <span>URL en texte ou fichier .txt contenant une ou plusieurs URLs</span>
+    </div>
+    <div class="form-row">
+      <button class="primary-button" type="submit">Analyser</button>
+      <span id="status-message" class="status-message" aria-live="polite"></span>
+    </div>
+  </form>
+</section>
+
+<section class="panel">
+  <div class="panel-header">
+    <h2>Historique</h2>
+    <span class="muted">100 dernières analyses</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Titre</th>
+          <th>URL de page</th>
+          <th>Lien m3u8</th>
+          <th>Date</th>
+          <th>Statut</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="history-body">
+        {% for item in history %}
+        <tr data-id="{{ item.id }}">
+          <td>{{ item.id }}</td>
+          <td>{{ item.page_title or "Sans titre" }}</td>
+          <td class="truncate"><a href="{{ item.page_url }}" target="_blank" rel="noreferrer">{{ item.page_url }}</a></td>
+          <td>
+            {% if item.m3u8_url %}
+              <div class="stream-cell">
+                <code>{{ item.m3u8_url }}</code>
+                <button class="copy-button" type="button" data-copy="{{ item.m3u8_url }}">Copier</button>
+              </div>
+            {% else %}
+              <span class="muted">Aucun</span>
+            {% endif %}
+          </td>
+          <td>{{ item.scanned_at }}</td>
+          <td><span class="badge status-{{ item.status }}">{{ item.status }}</span></td>
+          <td>
+            <button class="danger-button delete-row" type="button">Supprimer</button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}
