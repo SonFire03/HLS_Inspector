@@ -11,8 +11,62 @@
       <span class="hero-pill">Pas de téléchargement</span>
       <span class="hero-pill">HTML + ressources liées</span>
     </div>
+    <div class="signal-strip">
+      <div class="signal-card signal-card-a">
+        <span>Analyse locale</span>
+        <strong>Captures lisibles</strong>
+        <p>Aucune exécution distante, uniquement le HTML et les ressources déclarées.</p>
+      </div>
+      <div class="signal-card signal-card-b">
+        <span>Inventaire</span>
+        <strong>Flux, médias, docs</strong>
+        <p>Vue unifiée pour les ressources techniques détectées sur page.</p>
+      </div>
+      <div class="signal-card signal-card-c">
+        <span>Historique</span>
+        <strong>{{ history_view.pagination.total_items }} entrées</strong>
+        <p>Navigation rapide entre résultats, détail et exports.</p>
+      </div>
+    </div>
   </div>
   <div class="hero-side">
+    <div class="hero-visual panel">
+      <div class="hero-visual-top">
+        <div class="hero-visual-copy">
+          <span class="hero-visual-kicker">
+            <span class="pulse-dot"></span>
+            Scanner visuel
+          </span>
+          <h2>Signal capture</h2>
+          <p>Vue synthétique des flux, médias et ressources extraites par l’analyse locale.</p>
+        </div>
+        <div class="hero-visual-chip">LOCAL</div>
+      </div>
+      <div class="orb-scene" aria-hidden="true">
+        <div class="orb-ring orb-ring-a"></div>
+        <div class="orb-ring orb-ring-b"></div>
+        <div class="orb-ring orb-ring-c"></div>
+        <div class="orb-core">HLS</div>
+      </div>
+      <div class="hero-visual-grid">
+        <div class="visual-tile">
+          <span>Flux</span>
+          <strong>{{ history_view.summary.asset_counts.stream or 0 }}</strong>
+        </div>
+        <div class="visual-tile">
+          <span>Vidéos</span>
+          <strong>{{ history_view.summary.asset_counts.video or 0 }}</strong>
+        </div>
+        <div class="visual-tile">
+          <span>Documents</span>
+          <strong>{{ history_view.summary.asset_counts.document or 0 }}</strong>
+        </div>
+        <div class="visual-tile">
+          <span>Images</span>
+          <strong>{{ history_view.summary.asset_counts.image or 0 }}</strong>
+        </div>
+      </div>
+    </div>
     <div class="stat-grid" id="hero-stats">
       <article class="stat-card">
         <span class="stat-label">Analyses</span>
@@ -80,16 +134,25 @@
 
 <section class="panel composer">
   <form id="analyze-form" class="analysis-form">
-    <div class="composer-header">
-      <div>
+  <div class="composer-header">
+    <div>
+        <p class="eyebrow">Composer</p>
         <label class="field-label" for="url-input">URL ou texte contenant des URLs</label>
         <p class="composer-subtitle">Dépose une URL, un texte brut ou un fichier `.txt` avec plusieurs adresses.</p>
       </div>
       <span id="status-message" class="status-message" aria-live="polite"></span>
     </div>
     <div class="composer-grid">
-      <textarea id="url-input" name="url" rows="6" placeholder="https://example.com/video"></textarea>
+      <div class="composer-input">
+        <textarea id="url-input" name="url" rows="6" placeholder="https://example.com/video"></textarea>
+        <div class="composer-footer">
+          <span class="inline-chip">Collage direct</span>
+          <span class="inline-chip">Multi-URLs</span>
+          <span class="inline-chip">Aucune exécution distante</span>
+        </div>
+      </div>
       <div id="dropzone" class="dropzone" tabindex="0" aria-label="Zone de dépôt">
+        <span class="dropzone-badge">Drag & Drop</span>
         <strong>Glisser-déposer ici</strong>
         <span>URL en texte ou fichier `.txt` contenant une ou plusieurs URLs</span>
         <div class="dropzone-note">La zone accepte aussi le collage direct d’une URL.</div>

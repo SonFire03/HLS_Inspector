@@ -2,7 +2,7 @@
 {% block title %}Détail - HLS Inspector{% endblock %}
 {% block content %}
 <section class="detail-page">
-  <div class="detail-hero">
+  <div class="detail-hero panel">
     <div>
       <p class="eyebrow">Page d’analyse</p>
       <h1>{{ item.page_title if item else "Analyse introuvable" }}</h1>
@@ -18,7 +18,12 @@
 
   {% if item %}
   <div class="detail-layout">
-    <article class="panel detail-summary">
+    <article class="panel detail-summary detail-summary-shell">
+      <div class="detail-ribbon">
+        <span class="ribbon-item">Analyse #{{ item.id }}</span>
+        <span class="ribbon-item">{{ item.source_label }}</span>
+        <span class="ribbon-item">{{ item.status }}</span>
+      </div>
       <div class="detail-summary-grid">
         <div class="stat-card">
           <span class="stat-label">Statut</span>
@@ -41,13 +46,18 @@
           <strong class="stat-value stat-value-small">{{ item.scanned_at }}</strong>
         </div>
       </div>
+      <div class="detail-accent-row">
+        <span class="detail-accent-chip">Flux {{ item.stream_count }}</span>
+        <span class="detail-accent-chip">Ressources {{ item.asset_count }}</span>
+        <span class="detail-accent-chip">Source {{ item.source_label }}</span>
+      </div>
       <div class="detail-text-block">
         <h2>Résumé</h2>
         <p>{{ item.error_message or "Aucune erreur signalée." }}</p>
       </div>
     </article>
 
-    <article class="panel detail-streams">
+    <article class="panel detail-streams detail-glass">
       <h2>Flux détectés</h2>
       {% if item.streams %}
         <div class="stream-list">
@@ -63,7 +73,7 @@
       {% endif %}
     </article>
 
-    <article class="panel detail-streams">
+    <article class="panel detail-streams detail-glass">
       <h2>Vidéos détectées</h2>
       {% if item.videos %}
         <div class="stream-list">
@@ -79,7 +89,7 @@
       {% endif %}
     </article>
 
-    <article class="panel detail-streams">
+    <article class="panel detail-streams detail-glass">
       <h2>Autres ressources</h2>
       {% set extra_assets = (item.documents or []) + (item.images or []) + (item.other_assets or []) %}
       {% if extra_assets %}
@@ -96,16 +106,27 @@
       {% endif %}
     </article>
 
-    <article class="panel detail-trace">
-      <h2>Trace</h2>
-      <ol class="trace-list">
+    <article class="panel detail-trace detail-glass detail-timeline-card">
+      <div class="detail-card-head">
+        <h2>Timeline d’analyse</h2>
+        <span class="muted">Découverte par étapes</span>
+      </div>
+      <ol class="trace-list timeline-list">
         {% if item.source_trace %}
           {% for step in item.trace_steps %}
-            <li>
-              <strong>{{ step.stage }}</strong>
-              {% if step.kind %}<span class="muted">kind={{ step.kind }}</span>{% endif %}
-              {% if step.url %}<div class="trace-url">{{ step.url }}</div>{% endif %}
-              {% if step.message %}<div class="trace-message">{{ step.message }}</div>{% endif %}
+            <li class="timeline-step">
+              <div class="timeline-marker"></div>
+              <div class="timeline-body">
+                <div class="timeline-head">
+                  <strong>{{ step.stage }}</strong>
+                  {% if step.kind %}<span class="timeline-chip">kind={{ step.kind }}</span>{% endif %}
+                  {% if step.count is defined %}<span class="timeline-chip">count={{ step.count }}</span>{% endif %}
+                </div>
+                {% if step.url %}<div class="trace-url">{{ step.url }}</div>{% endif %}
+                {% if step.message %}<div class="trace-message">{{ step.message }}</div>{% endif %}
+                {% if step.bytes is defined %}<div class="timeline-meta">bytes {{ step.bytes }}</div>{% endif %}
+                {% if step.streams is defined %}<div class="timeline-meta">streams {{ step.streams }}</div>{% endif %}
+              </div>
             </li>
           {% endfor %}
         {% else %}

@@ -2,7 +2,7 @@
 {% block title %}Rapport HTML - HLS Inspector{% endblock %}
 {% block content %}
 <section class="report-page">
-  <div class="detail-hero">
+  <div class="detail-hero panel report-hero">
     <div>
       <p class="eyebrow">Rapport HTML</p>
       <h1>HLS Inspector Report</h1>
@@ -17,6 +17,11 @@
   </div>
 
   <section class="panel report-summary">
+    <div class="report-summary-ribbon">
+      <span class="ribbon-item">Inventaire global</span>
+      <span class="ribbon-item">Lecture rapide</span>
+      <span class="ribbon-item">Exportable</span>
+    </div>
     <div class="stat-grid">
       <article class="stat-card">
         <span class="stat-label">Analyses</span>
@@ -59,7 +64,7 @@
 
   <section class="report-list">
     {% for item in history_items %}
-    <article class="panel report-item">
+    <article class="panel report-item report-card">
       <div class="report-item-header">
         <div>
           <p class="eyebrow">{{ item.source_label }}</p>
