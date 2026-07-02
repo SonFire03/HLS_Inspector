@@ -1374,6 +1374,10 @@ code {
   .signal-strip {
     grid-template-columns: 1fr;
   }
+
+  .hero-flow {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 840px) {
@@ -1445,10 +1449,55 @@ code {
 }
 
 .hero-visual {
-  border: 1px solid rgba(95, 215, 200, 0.14);
-  background:
-    radial-gradient(circle at top, rgba(95, 215, 200, 0.1), transparent 38%),
-    linear-gradient(180deg, rgba(10, 18, 31, 0.94) 0%, rgba(6, 11, 20, 0.98) 100%);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  background: linear-gradient(180deg, rgba(10, 18, 31, 0.92), rgba(6, 11, 20, 0.98));
+}
+
+.hero-flow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.flow-card {
+  position: relative;
+  overflow: hidden;
+  min-height: 148px;
+  padding: 16px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(10, 18, 31, 0.92), rgba(6, 11, 20, 0.98));
+  border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.flow-card::after {
+  content: "";
+  position: absolute;
+  inset: auto -16px -16px auto;
+  width: 84px;
+  height: 84px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(95, 215, 200, 0.18), transparent 68%);
+  pointer-events: none;
+}
+
+.flow-index {
+  display: inline-flex;
+  margin-bottom: 8px;
+  color: var(--accent);
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.flow-card strong {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.flow-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
 }
 
 .composer-input {
@@ -1497,7 +1546,7 @@ code {
 
 .detail-glass {
   background:
-    linear-gradient(180deg, rgba(10, 18, 31, 0.9) 0%, rgba(6, 11, 20, 0.95) 100%);
+    linear-gradient(180deg, rgba(10, 18, 31, 0.92) 0%, rgba(6, 11, 20, 0.98) 100%);
 }
 
 .report-hero {
@@ -1522,6 +1571,23 @@ code {
 
 .report-card {
   border-color: rgba(148, 163, 184, 0.14);
+}
+
+.signal-card,
+.flow-card,
+.visual-tile,
+.stat-card,
+.dashboard-card,
+.details-card,
+.report-card,
+.timeline-body {
+  background: linear-gradient(180deg, rgba(10, 18, 31, 0.92), rgba(6, 11, 20, 0.98));
+  border-color: rgba(148, 163, 184, 0.12);
+}
+
+.signal-card::after,
+.flow-card::after {
+  opacity: 0.3;
 }
 
 .hero,
