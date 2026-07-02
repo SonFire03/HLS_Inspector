@@ -4,6 +4,37 @@ const input = document.getElementById("url-input");
 const dropzone = document.getElementById("dropzone");
 const historyBody = document.getElementById("history-body");
 const clearHistoryButton = document.getElementById("clear-history");
+const detailsModal = document.getElementById("details-modal");
+const detailsTitle = document.getElementById("details-title");
+const detailsUrl = document.getElementById("details-url");
+const detailsStatus = document.getElementById("details-status");
+const detailsDate = document.getElementById("details-date");
+const detailsError = document.getElementById("details-error");
+const detailsStreams = document.getElementById("details-streams");
+const detailsTrace = document.getElementById("details-trace");
+const detailsSourceType = document.getElementById("details-source-type");
+const historySearch = document.getElementById("history-search");
+const historyStatus = document.getElementById("history-status");
+const historyPerPage = document.getElementById("history-per-page");
+const historyApply = document.getElementById("history-apply");
+const historyReset = document.getElementById("history-reset");
+const historyPrev = document.getElementById("history-prev");
+const historyNext = document.getElementById("history-next");
+const historyPage = document.getElementById("history-page");
+const historyCache = new Map();
+const historyMeta = document.getElementById("history-meta");
+const statAnalyses = document.getElementById("stat-analyses");
+const statStreams = document.getElementById("stat-streams");
+const statDirect = document.getElementById("stat-direct");
+const statSources = document.getElementById("stat-sources");
+
+const historyState = {
+  page: 1,
+  perPage: Number(historyPerPage?.value || 10),
+  status: historyStatus?.value || "all",
+  search: historySearch?.value || "",
+  grouped: true,
+};
 
 function setStatus(message, isError = false) {
   statusMessage.textContent = message;
@@ -16,23 +47,33 @@ function extractUrls(text) {
 }
 
 function appendHistoryRow(item) {
+  historyCache.set(String(item.id), item);
   const row = document.createElement("tr");
   row.dataset.id = item.id;
+  const streams = Array.isArray(item.streams) ? item.streams : [];
   row.innerHTML = `
     <td>${item.id}</td>
     <td>${escapeHtml(item.page_title || "Sans titre")}</td>
     <td class="truncate"><a href="${escapeAttr(item.page_url)}" target="_blank" rel="noreferrer">${escapeHtml(item.page_url)}</a></td>
     <td>
-      ${item.m3u8_url ? `
+      ${streams.length ? `
         <div class="stream-cell">
-          <code>${escapeHtml(item.m3u8_url)}</code>
-          <button class="copy-button" type="button" data-copy="${escapeAttr(item.m3u8_url)}">Copier</button>
+          ${streams.map((stream) => `
+            <div class="stream-pill">
+              <code>${escapeHtml(stream)}</code>
+              <button class="copy-button" type="button" data-copy="${escapeAttr(stream)}">Copier</button>
+            </div>
+          `).join("")}
         </div>
       ` : '<span class="muted">Aucun</span>'}
     </td>
+    <td><span class="badge badge-source source-${escapeAttr(item.source_type || "unknown")}">${escapeHtml(item.source_label || "Inconnue")}</span></td>
     <td>${escapeHtml(item.scanned_at)}</td>
     <td><span class="badge status-${escapeAttr(item.status)}">${escapeHtml(item.status)}</span></td>
-    <td><button class="danger-button delete-row" type="button">Supprimer</button></td>
+    <td>
+      <button class="ghost-button details-row" type="button">Détails</button>
+      <button class="danger-button delete-row" type="button">Supprimer</button>
+    </td>
   `;
   historyBody.prepend(row);
 }
@@ -63,11 +104,116 @@ async function analyzeOne(url) {
   return data;
 }
 
+function buildHistoryQuery() {
+  const params = new URLSearchParams({
+    page: String(historyState.page),
+    per_page: String(historyState.perPage),
+    status: historyState.status,
+    search: historyState.search,
+    grouped: historyState.grouped ? "1" : "0",
+  });
+  return params.toString();
+}
+
 async function refreshHistory() {
-  const response = await fetch("/api/history");
+  const response = await fetch(`/api/history?${buildHistoryQuery()}`);
   const data = await response.json();
   historyBody.innerHTML = "";
+  historyCache.clear();
   data.items.forEach(appendHistoryRow);
+  updateHeroStats(data.items, data.pagination);
+
+  const pagination = data.pagination || {};
+  const totalItems = pagination.total_items ?? data.items.length;
+  historyMeta.textContent = `${totalItems} analyse(s)`;
+  historyPage.textContent = `Page ${pagination.page || 1} / ${pagination.total_pages || 1}`;
+  historyPrev.disabled = !pagination.has_previous;
+  historyNext.disabled = !pagination.has_next;
+}
+
+function updateHeroStats(items, pagination) {
+  const totalAnalyses = pagination?.total_items ?? items.length;
+  const totalStreams = items.reduce((sum, item) => sum + Number(item.stream_count || 0), 0);
+  const directCount = items.filter((item) => item.source_type === "direct").length;
+  const sourceTypes = new Set(items.map((item) => item.source_type || "unknown"));
+
+  statAnalyses.textContent = String(totalAnalyses);
+  statStreams.textContent = String(totalStreams);
+  statDirect.textContent = String(directCount);
+  statSources.textContent = String(sourceTypes.size);
+}
+
+function openDetails(item) {
+  detailsTitle.textContent = item.page_title || "Sans titre";
+  detailsUrl.textContent = item.page_url || "-";
+  detailsStatus.textContent = item.status || "-";
+  detailsDate.textContent = item.scanned_at || "-";
+  detailsError.textContent = item.error_message || "Aucune";
+  detailsSourceType.textContent = item.source_label || "Inconnue";
+  detailsSourceType.className = `badge badge-source source-${escapeAttr(item.source_type || "unknown")}`;
+
+  detailsStreams.innerHTML = "";
+  const streams = Array.isArray(item.streams) ? item.streams : [];
+  if (streams.length) {
+    streams.forEach((stream) => {
+      const wrapper = document.createElement("div");
+      wrapper.className = "stream-pill";
+      const code = document.createElement("code");
+      code.textContent = stream;
+      const copy = document.createElement("button");
+      copy.type = "button";
+      copy.className = "copy-button";
+      copy.dataset.copy = stream;
+      copy.textContent = "Copier";
+      wrapper.append(code, copy);
+      detailsStreams.appendChild(wrapper);
+    });
+  } else {
+    detailsStreams.textContent = item.status === "success" ? "Flux non présent sur cette ligne." : "Aucun";
+  }
+
+  detailsTrace.innerHTML = "";
+  const trace = parseTrace(item.source_trace);
+  if (trace.length === 0) {
+    const li = document.createElement("li");
+    li.textContent = "Aucune trace disponible.";
+    detailsTrace.appendChild(li);
+  } else {
+    trace.forEach((step) => {
+      const li = document.createElement("li");
+      const parts = [step.stage];
+      if (step.kind) parts.push(`kind=${step.kind}`);
+      if (step.url) parts.push(step.url);
+      if (step.message) parts.push(step.message);
+      if (typeof step.count !== "undefined") parts.push(`count=${step.count}`);
+      if (typeof step.bytes !== "undefined") parts.push(`bytes=${step.bytes}`);
+      if (typeof step.streams !== "undefined") parts.push(`streams=${step.streams}`);
+      li.textContent = parts.join(" · ");
+      detailsTrace.appendChild(li);
+    });
+  }
+
+  detailsModal.classList.remove("hidden");
+  detailsModal.setAttribute("aria-hidden", "false");
+}
+
+function parseTrace(rawTrace) {
+  if (!rawTrace) return [];
+  if (Array.isArray(rawTrace)) return rawTrace;
+  if (typeof rawTrace === "string") {
+    try {
+      const parsed = JSON.parse(rawTrace);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+function closeDetails() {
+  detailsModal.classList.add("hidden");
+  detailsModal.setAttribute("aria-hidden", "true");
 }
 
 form.addEventListener("submit", async (event) => {
@@ -93,6 +239,7 @@ form.addEventListener("submit", async (event) => {
         setStatus(result.error_message || `Erreur pour ${url}`, true);
       }
     }
+    historyState.page = 1;
     await refreshHistory();
   } catch (error) {
     setStatus(error.message, true);
@@ -131,6 +278,13 @@ dropzone.addEventListener("click", () => input.focus());
 
 historyBody.addEventListener("click", async (event) => {
   const target = event.target;
+  const row = target.closest("tr");
+  const item = row ? historyCache.get(String(row.dataset.id)) : null;
+
+  if (target.classList.contains("details-row") && item) {
+    openDetails(item);
+    return;
+  }
 
   if (target.classList.contains("copy-button")) {
     await navigator.clipboard.writeText(target.dataset.copy);
@@ -145,11 +299,23 @@ historyBody.addEventListener("click", async (event) => {
 
     const response = await fetch(`/api/history/${id}`, { method: "DELETE" });
     if (response.ok) {
-      row.remove();
-      setStatus("Entrée supprimée.");
+      setStatus("Analyse supprimée.");
+      await refreshHistory();
     } else {
-      setStatus("Impossible de supprimer l’entrée.", true);
+      setStatus("Impossible de supprimer l’analyse.", true);
     }
+  }
+});
+
+detailsModal.addEventListener("click", (event) => {
+  if (event.target.matches("[data-close-modal]")) {
+    closeDetails();
+  }
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !detailsModal.classList.contains("hidden")) {
+    closeDetails();
   }
 });
 
@@ -157,9 +323,45 @@ clearHistoryButton.addEventListener("click", async () => {
   if (!confirm("Vider tout l’historique ?")) return;
   const response = await fetch("/api/history", { method: "DELETE" });
   if (response.ok) {
+    historyState.page = 1;
     historyBody.innerHTML = "";
     setStatus("Historique vidé.");
+    historyCache.clear();
+    await refreshHistory();
   } else {
     setStatus("Impossible de vider l’historique.", true);
   }
 });
+
+historyApply.addEventListener("click", async () => {
+  historyState.page = 1;
+  historyState.search = historySearch.value.trim();
+  historyState.status = historyStatus.value;
+  historyState.perPage = Number(historyPerPage.value || 10);
+  await refreshHistory();
+});
+
+historyReset.addEventListener("click", async () => {
+  historySearch.value = "";
+  historyStatus.value = "all";
+  historyPerPage.value = "10";
+  historyState.page = 1;
+  historyState.search = "";
+  historyState.status = "all";
+  historyState.perPage = 10;
+  await refreshHistory();
+});
+
+historyPrev.addEventListener("click", async () => {
+  if (historyState.page > 1) {
+    historyState.page -= 1;
+    await refreshHistory();
+  }
+});
+
+historyNext.addEventListener("click", async () => {
+  historyState.page += 1;
+  await refreshHistory();
+});
+
+refreshHistory();

@@ -1,9 +1,20 @@
+import json
+import tempfile
 from pathlib import Path
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app import crawl_related_sources, dedupe_urls, extract_m3u8_urls, is_valid_http_url
+from app import (
+    crawl_related_sources,
+    dedupe_urls,
+    ensure_database,
+    extract_m3u8_urls,
+    get_history_view,
+    infer_source_type_from_steps,
+    is_valid_http_url,
+    save_scan,
+)
 
 
 class FakeResponse:
@@ -88,6 +99,63 @@ def test_follow_iframe_to_find_stream():
             "https://player.example.com/embed/123": '<script>const src="https://cdn.example.com/live/master.m3u8";</script>'
         }
     )
-    assert crawl_related_sources(session, html, "https://example.com/page", {"User-Agent": "test"}) == [
-        "https://cdn.example.com/live/master.m3u8"
-    ]
+    streams, trace = crawl_related_sources(session, html, "https://example.com/page", {"User-Agent": "test"})
+    assert streams == ["https://cdn.example.com/live/master.m3u8"]
+    assert any(step["stage"] == "resource_fetched" for step in trace)
+
+
+def test_infer_source_type_from_trace():
+    assert infer_source_type_from_steps([{"stage": "direct_m3u8"}]) == "direct"
+    assert infer_source_type_from_steps([{"stage": "follow", "kind": "iframe"}]) == "iframe"
+    assert infer_source_type_from_steps([{"stage": "follow", "kind": "resource"}]) == "resource"
+
+
+def test_grouped_history_pagination():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = str(Path(tmpdir) / "history.db")
+        ensure_database(db_path)
+        save_scan(
+            db_path,
+            {
+                "page_title": "Page A",
+                "page_url": "https://example.com/a",
+                "m3u8_url": "https://cdn.example.com/a1.m3u8",
+                "status": "success",
+                "error_message": None,
+                "scanned_at": "2026-07-02T10:00:00+02:00",
+                "source_trace": json.dumps([{"stage": "direct_m3u8"}]),
+                "source_type": "direct",
+            },
+        )
+        save_scan(
+            db_path,
+            {
+                "page_title": "Page A",
+                "page_url": "https://example.com/a",
+                "m3u8_url": "https://cdn.example.com/a2.m3u8",
+                "status": "success",
+                "error_message": None,
+                "scanned_at": "2026-07-02T10:00:00+02:00",
+                "source_trace": json.dumps([{"stage": "direct_m3u8"}]),
+                "source_type": "direct",
+            },
+        )
+        save_scan(
+            db_path,
+            {
+                "page_title": "Page B",
+                "page_url": "https://example.com/b",
+                "m3u8_url": None,
+                "status": "no_stream_found",
+                "error_message": None,
+                "scanned_at": "2026-07-02T11:00:00+02:00",
+                "source_trace": json.dumps([{"stage": "no_stream_found"}]),
+                "source_type": "unknown",
+            },
+        )
+
+        history_view = get_history_view(db_path, page=1, per_page=1, grouped=True)
+        assert history_view["pagination"]["total_items"] == 2
+        assert history_view["pagination"]["total_pages"] == 2
+        assert len(history_view["items"]) == 1
+        assert history_view["items"][0]["stream_count"] in {0, 2}

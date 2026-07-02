@@ -43,11 +43,13 @@ L’application écoute par défaut sur `http://127.0.0.1:5000`.
 
 - `GET /` : interface web locale
 - `POST /api/analyze` : analyse une URL
-- `GET /api/history` : retourne les dernières analyses
-- `DELETE /api/history/<id>` : supprime une entrée
+- `GET /api/history` : retourne l’historique groupé avec filtres et pagination
+- `DELETE /api/history/<id>` : supprime une analyse complète
 - `DELETE /api/history` : vide l’historique
 - `GET /export/json` : export complet JSON
 - `GET /export/csv` : export complet CSV
+- `GET /export/detail/json` : export détaillé JSON
+- `GET /export/detail/csv` : export détaillé CSV
 
 ## Limites de la V1
 
@@ -60,10 +62,8 @@ L’application écoute par défaut sur `http://127.0.0.1:5000`.
 
 ## Idées V2
 
-- suivi plus large des sources embarquées
-- journal de debug pour expliquer l’origine d’un flux
-- File d’attente d’analyses
-- Filtrage plus fin des statuts
-- Export enrichi avec regroupement par page
-- Aperçu des métadonnées supplémentaires de la page
-- Historique paginé et recherche locale
+- refactor en modules `extractor.py`, `db.py`, `routes.py`
+- export Markdown de rapport
+- statut d’analyse encore plus détaillé par source suivie
+- journal local des performances et des erreurs réseau
+- davantage de tests sur des pages réelles autorisées

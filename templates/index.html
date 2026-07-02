@@ -2,37 +2,101 @@
 {% block title %}HLS Inspector{% endblock %}
 {% block content %}
 <section class="hero">
-  <div>
+  <div class="hero-copy">
     <p class="eyebrow">Analyse locale autorisée</p>
     <h1>HLS Inspector</h1>
-    <p class="lead">Colle une URL ou dépose un fichier texte pour inventorier les liens `.m3u8` présents dans le HTML.</p>
+    <p class="lead">Colle une URL ou dépose un fichier texte pour inventorier les liens `.m3u8` présents dans le HTML, les iframes et les ressources déclarées.</p>
+    <div class="hero-pills">
+      <span class="hero-pill">HTTP/HTTPS only</span>
+      <span class="hero-pill">Pas de téléchargement</span>
+      <span class="hero-pill">HTML + ressources liées</span>
+    </div>
   </div>
-  <div class="actions-bar">
-    <a class="ghost-button" href="/export/json">Export JSON</a>
-    <a class="ghost-button" href="/export/csv">Export CSV</a>
-    <button class="danger-button" id="clear-history" type="button">Vider l’historique</button>
+  <div class="hero-side">
+    <div class="stat-grid" id="hero-stats">
+      <article class="stat-card">
+        <span class="stat-label">Analyses</span>
+        <strong class="stat-value" id="stat-analyses">{{ history_view.pagination.total_items }}</strong>
+      </article>
+      <article class="stat-card">
+        <span class="stat-label">Flux visibles</span>
+        <strong class="stat-value" id="stat-streams">0</strong>
+      </article>
+      <article class="stat-card">
+        <span class="stat-label">Pages directes</span>
+        <strong class="stat-value" id="stat-direct">0</strong>
+      </article>
+      <article class="stat-card">
+        <span class="stat-label">Sources suivies</span>
+        <strong class="stat-value" id="stat-sources">0</strong>
+      </article>
+    </div>
+    <div class="actions-bar">
+      <a class="ghost-button" href="/export/json">Export JSON</a>
+      <a class="ghost-button" href="/export/csv">Export CSV</a>
+      <button class="danger-button" id="clear-history" type="button">Vider l’historique</button>
+    </div>
   </div>
 </section>
 
 <section class="panel composer">
   <form id="analyze-form" class="analysis-form">
-    <label class="field-label" for="url-input">URL ou texte contenant des URLs</label>
-    <textarea id="url-input" name="url" rows="4" placeholder="https://example.com/video"></textarea>
-    <div id="dropzone" class="dropzone" tabindex="0" aria-label="Zone de dépôt">
-      <strong>Glisser-déposer ici</strong>
-      <span>URL en texte ou fichier .txt contenant une ou plusieurs URLs</span>
-    </div>
-    <div class="form-row">
-      <button class="primary-button" type="submit">Analyser</button>
+    <div class="composer-header">
+      <div>
+        <label class="field-label" for="url-input">URL ou texte contenant des URLs</label>
+        <p class="composer-subtitle">Dépose une URL, un texte brut ou un fichier `.txt` avec plusieurs adresses.</p>
+      </div>
       <span id="status-message" class="status-message" aria-live="polite"></span>
+    </div>
+    <div class="composer-grid">
+      <textarea id="url-input" name="url" rows="6" placeholder="https://example.com/video"></textarea>
+      <div id="dropzone" class="dropzone" tabindex="0" aria-label="Zone de dépôt">
+        <strong>Glisser-déposer ici</strong>
+        <span>URL en texte ou fichier `.txt` contenant une ou plusieurs URLs</span>
+        <div class="dropzone-note">La zone accepte aussi le collage direct d’une URL.</div>
+      </div>
+    </div>
+    <div class="form-row form-row-spaced">
+      <button class="primary-button" type="submit">Analyser</button>
+      <div class="inline-help">
+        <span class="inline-chip">Timeout 10 s</span>
+        <span class="inline-chip">HTML limité à 5 Mo</span>
+        <span class="inline-chip">Sources liées suivies</span>
+      </div>
     </div>
   </form>
 </section>
 
 <section class="panel">
-  <div class="panel-header">
-    <h2>Historique</h2>
-    <span class="muted">100 dernières analyses</span>
+  <div class="section-top">
+    <div>
+      <h2>Historique</h2>
+      <p class="section-subtitle">Vue groupée par analyse, avec filtres et pagination.</p>
+    </div>
+    <span class="muted" id="history-meta">{{ history_view.pagination.total_items }} analyses</span>
+  </div>
+  <div class="history-toolbar">
+    <label class="sr-only" for="history-search">Recherche</label>
+    <input id="history-search" type="search" placeholder="Rechercher titre, URL, statut, erreur" value="{{ history_view.filters.search }}">
+    <label class="sr-only" for="history-status">Statut</label>
+    <select id="history-status">
+      <option value="all" {% if history_view.filters.status == "all" %}selected{% endif %}>Tous les statuts</option>
+      <option value="success" {% if history_view.filters.status == "success" %}selected{% endif %}>success</option>
+      <option value="no_stream_found" {% if history_view.filters.status == "no_stream_found" %}selected{% endif %}>no_stream_found</option>
+      <option value="error" {% if history_view.filters.status == "error" %}selected{% endif %}>error</option>
+      <option value="invalid_url" {% if history_view.filters.status == "invalid_url" %}selected{% endif %}>invalid_url</option>
+    </select>
+    <label class="sr-only" for="history-per-page">Par page</label>
+    <select id="history-per-page">
+      <option value="5" {% if history_view.pagination.per_page == 5 %}selected{% endif %}>5</option>
+      <option value="10" {% if history_view.pagination.per_page == 10 %}selected{% endif %}>10</option>
+      <option value="20" {% if history_view.pagination.per_page == 20 %}selected{% endif %}>20</option>
+      <option value="50" {% if history_view.pagination.per_page == 50 %}selected{% endif %}>50</option>
+    </select>
+    <button class="ghost-button" id="history-apply" type="button">Filtrer</button>
+    <button class="ghost-button" id="history-reset" type="button">Réinitialiser</button>
+    <a class="ghost-button" href="/export/detail/json">Export détaillé JSON</a>
+    <a class="ghost-button" href="/export/detail/csv">Export détaillé CSV</a>
   </div>
   <div class="table-wrap">
     <table>
@@ -41,31 +105,38 @@
           <th>ID</th>
           <th>Titre</th>
           <th>URL de page</th>
-          <th>Lien m3u8</th>
+          <th>Flux .m3u8</th>
+          <th>Source</th>
           <th>Date</th>
           <th>Statut</th>
           <th>Actions</th>
         </tr>
       </thead>
       <tbody id="history-body">
-        {% for item in history %}
+        {% for item in history_view["items"] %}
         <tr data-id="{{ item.id }}">
           <td>{{ item.id }}</td>
           <td>{{ item.page_title or "Sans titre" }}</td>
           <td class="truncate"><a href="{{ item.page_url }}" target="_blank" rel="noreferrer">{{ item.page_url }}</a></td>
           <td>
-            {% if item.m3u8_url %}
+            {% if item.streams %}
               <div class="stream-cell">
-                <code>{{ item.m3u8_url }}</code>
-                <button class="copy-button" type="button" data-copy="{{ item.m3u8_url }}">Copier</button>
+                {% for stream in item.streams %}
+                  <div class="stream-pill">
+                    <code>{{ stream }}</code>
+                    <button class="copy-button" type="button" data-copy="{{ stream }}">Copier</button>
+                  </div>
+                {% endfor %}
               </div>
             {% else %}
               <span class="muted">Aucun</span>
             {% endif %}
           </td>
+          <td><span class="badge badge-source source-{{ item.source_type }}">{{ item.source_label }}</span></td>
           <td>{{ item.scanned_at }}</td>
           <td><span class="badge status-{{ item.status }}">{{ item.status }}</span></td>
           <td>
+            <button class="ghost-button details-row" type="button">Détails</button>
             <button class="danger-button delete-row" type="button">Supprimer</button>
           </td>
         </tr>
@@ -73,5 +144,45 @@
       </tbody>
     </table>
   </div>
+  <div class="pagination-bar">
+    <button class="ghost-button" id="history-prev" type="button" {% if not history_view.pagination.has_previous %}disabled{% endif %}>Précédent</button>
+    <span id="history-page" class="muted">Page {{ history_view.pagination.page }} / {{ history_view.pagination.total_pages }}</span>
+    <button class="ghost-button" id="history-next" type="button" {% if not history_view.pagination.has_next %}disabled{% endif %}>Suivant</button>
+  </div>
 </section>
+
+<div id="details-modal" class="modal hidden" aria-hidden="true" role="dialog" aria-modal="true">
+  <div class="modal-backdrop" data-close-modal></div>
+  <div class="modal-panel" role="document">
+    <div class="modal-header">
+      <div>
+        <p class="eyebrow">Détails de l’analyse</p>
+        <h2 id="details-title">Analyse</h2>
+      </div>
+      <button class="danger-button" type="button" data-close-modal>Fermer</button>
+    </div>
+    <div class="details-grid">
+      <div class="details-card">
+        <h3>Résumé</h3>
+        <dl class="details-list">
+          <div><dt>URL</dt><dd id="details-url">-</dd></div>
+          <div><dt>Statut</dt><dd id="details-status">-</dd></div>
+          <div><dt>Date</dt><dd id="details-date">-</dd></div>
+          <div><dt>Erreur</dt><dd id="details-error">-</dd></div>
+        </dl>
+      </div>
+      <div class="details-card">
+        <h3>Flux détectés</h3>
+        <div id="details-streams" class="details-streams muted">Aucun</div>
+        <div class="details-source">
+          <span class="badge badge-source" id="details-source-type">Inconnue</span>
+        </div>
+      </div>
+      <div class="details-card details-trace-card">
+        <h3>Trace</h3>
+        <ol id="details-trace" class="trace-list"></ol>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
