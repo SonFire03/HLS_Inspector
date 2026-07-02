@@ -66,7 +66,7 @@
               <code>{{ stream }}</code>
               <div class="pill-actions">
                 <button class="copy-button" type="button" data-copy="{{ stream }}">Copier</button>
-                <button class="open-button" type="button" data-open="{{ stream }}">Ouvrir</button>
+                <a class="open-button" href="{{ stream }}" target="_blank" rel="noopener noreferrer">Ouvrir</a>
               </div>
             </div>
           {% endfor %}
@@ -85,7 +85,7 @@
               <code>{{ video }}</code>
               <div class="pill-actions">
                 <button class="copy-button" type="button" data-copy="{{ video }}">Copier</button>
-                <button class="open-button" type="button" data-open="{{ video }}">Ouvrir</button>
+                <a class="open-button" href="{{ video }}" target="_blank" rel="noopener noreferrer">Ouvrir</a>
               </div>
             </div>
           {% endfor %}
@@ -105,7 +105,7 @@
               <code>{{ asset }}</code>
               <div class="pill-actions">
                 <button class="copy-button" type="button" data-copy="{{ asset }}">Copier</button>
-                <button class="open-button" type="button" data-open="{{ asset }}">Ouvrir</button>
+                <a class="open-button" href="{{ asset }}" target="_blank" rel="noopener noreferrer">Ouvrir</a>
               </div>
             </div>
           {% endfor %}

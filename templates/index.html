@@ -168,7 +168,7 @@
               <code>{{ latest_item.streams[0] }}</code>
               <div class="pill-actions">
                 <button class="copy-button" type="button" data-copy="{{ latest_item.streams[0] }}">Copier</button>
-                <button class="open-button" type="button" data-open="{{ latest_item.streams[0] }}">Ouvrir</button>
+                <a class="open-button" href="{{ latest_item.streams[0] }}" target="_blank" rel="noopener noreferrer">Ouvrir</a>
               </div>
             </div>
             {% if latest_item.streams|length > 1 %}
@@ -280,7 +280,7 @@
           <code>{{ first_stream }}</code>
           <div class="pill-actions">
             <button class="copy-button" type="button" data-copy="{{ first_stream }}">Copier</button>
-            <button class="open-button" type="button" data-open="{{ first_stream }}">Ouvrir</button>
+            <a class="open-button" href="{{ first_stream }}" target="_blank" rel="noopener noreferrer">Ouvrir</a>
           </div>
         </div>
             {% else %}
@@ -296,10 +296,10 @@
         </div>
       <div class="history-card-actions">
         <button class="ghost-button copy-page-button" type="button" data-copy="{{ item.page_url }}">Copier URL</button>
-        <button class="ghost-button open-page-button" type="button" data-open="{{ item.page_url }}">Ouvrir URL</button>
+        <a class="ghost-button open-page-button" href="{{ item.page_url }}" target="_blank" rel="noopener noreferrer">Ouvrir URL</a>
         {% if first_stream %}
         <button class="ghost-button copy-stream-button" type="button" data-copy="{{ first_stream }}">Copier flux</button>
-        <button class="ghost-button open-stream-button" type="button" data-open="{{ first_stream }}">Ouvrir flux</button>
+        <a class="ghost-button open-stream-button" href="{{ first_stream }}" target="_blank" rel="noopener noreferrer">Ouvrir flux</a>
         {% else %}
         <button class="ghost-button copy-stream-button" type="button" disabled>Copier flux</button>
         <button class="ghost-button open-stream-button" type="button" disabled>Ouvrir flux</button>
@@ -338,7 +338,7 @@
                   <a href="{{ item.page_url }}" target="_blank" rel="noreferrer">{{ item.page_url }}</a>
                   <div class="pill-actions">
                     <button class="copy-button" type="button" data-copy="{{ item.page_url }}">Copier</button>
-                    <button class="open-button" type="button" data-open="{{ item.page_url }}">Ouvrir</button>
+                    <a class="open-button" href="{{ item.page_url }}" target="_blank" rel="noopener noreferrer">Ouvrir</a>
                   </div>
                 </div>
               </td>
@@ -350,7 +350,7 @@
                       <code>{{ stream }}</code>
                       <div class="pill-actions">
                         <button class="copy-button" type="button" data-copy="{{ stream }}">Copier</button>
-                        <button class="open-button" type="button" data-open="{{ stream }}">Ouvrir</button>
+                        <a class="open-button" href="{{ stream }}" target="_blank" rel="noopener noreferrer">Ouvrir</a>
                       </div>
                     </div>
                   {% endfor %}
@@ -367,7 +367,7 @@
                       <code>{{ video }}</code>
                       <div class="pill-actions">
                         <button class="copy-button" type="button" data-copy="{{ video }}">Copier</button>
-                        <button class="open-button" type="button" data-open="{{ video }}">Ouvrir</button>
+                        <a class="open-button" href="{{ video }}" target="_blank" rel="noopener noreferrer">Ouvrir</a>
                       </div>
                     </div>
                   {% endfor %}
@@ -385,7 +385,7 @@
                       <code>{{ asset }}</code>
                       <div class="pill-actions">
                         <button class="copy-button" type="button" data-copy="{{ asset }}">Copier</button>
-                        <button class="open-button" type="button" data-open="{{ asset }}">Ouvrir</button>
+                        <a class="open-button" href="{{ asset }}" target="_blank" rel="noopener noreferrer">Ouvrir</a>
                       </div>
                     </div>
                   {% endfor %}

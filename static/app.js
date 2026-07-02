@@ -102,7 +102,7 @@ function renderOpenButton(value, label = "Ouvrir") {
   if (!value) {
     return `<button class="open-button" type="button" disabled>${label}</button>`;
   }
-  return `<button class="open-button" type="button" data-open="${escapeAttr(value)}">${label}</button>`;
+  return `<a class="open-button" href="${escapeAttr(value)}" target="_blank" rel="noopener noreferrer">${label}</a>`;
 }
 
 function renderValueActions(value, copyLabel = "Copier", openLabel = "Ouvrir") {
@@ -759,11 +759,6 @@ document.addEventListener("click", async (event) => {
     return;
   }
 
-  if (target.dataset.open) {
-    const url = target.dataset.open;
-    if (!url) return;
-    window.open(url, "_blank", "noopener,noreferrer");
-  }
 });
 
 detailsModal.addEventListener("click", (event) => {
