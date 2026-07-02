@@ -1,8 +1,19 @@
 # HLS Inspector
 
-Version initiale: `v1.0.0`
+Version courante: `v1.1.0`
 
 Application locale d’inventaire et d’analyse technique de pages autorisées. Elle détecte des ressources exposées dans le HTML ou les ressources liées, notamment des flux HLS, des vidéos et des documents/images courants.
+
+## Release actuelle
+
+Cette release apporte :
+
+- un dashboard plus compact et plus lisible
+- un mode historique en cartes par défaut et en tableau expert
+- une carte "Dernière analyse" pour lire rapidement le dernier résultat
+- des actions `Copier` et `Ouvrir` sur les URLs détectées
+- un style visuel plus homogène, orienté analyse locale premium
+- un README aligné sur le périmètre actuel de l’outil
 
 ## Avertissement légal
 
